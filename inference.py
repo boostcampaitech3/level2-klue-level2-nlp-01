@@ -72,6 +72,7 @@ def main(args):
   MODEL_NAME = args.model_dir # model dir.
   model = AutoModelForSequenceClassification.from_pretrained(args.model_dir)
   model.parameters
+  print(model.parameters)
   model.to(device)
 
   ## load test datset

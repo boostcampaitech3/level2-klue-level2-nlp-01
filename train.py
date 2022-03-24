@@ -5,7 +5,7 @@ import torch
 import sklearn
 import numpy as np
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
-from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments, RobertaConfig, RobertaTokenizer, RobertaForSequenceClassification, BertTokenizer
+from transformers import AutoModel, AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments, RobertaConfig, RobertaTokenizer, RobertaForSequenceClassification, BertTokenizer
 from load_data import *
 
 
@@ -68,8 +68,9 @@ def label_to_num(label):
 def train():
   # load model and tokenizer
   # MODEL_NAME = "bert-base-uncased"
-  MODEL_NAME = "klue/bert-base"
+  MODEL_NAME = "klue/roberta-large"
   tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+  # tokenizer = RobertaTokenizer.from_pretrained(MODEL_NAME)
 
   # load dataset
   train_dataset = load_data("../dataset/train/train.csv")
@@ -90,10 +91,12 @@ def train():
 
   print(device)
   # setting model hyperparameter
-  model_config =  AutoConfig.from_pretrained(MODEL_NAME)
+  model_config = AutoConfig.from_pretrained(MODEL_NAME)
+  # model_config = RobertaConfig.from_pretrained(MODEL_NAME)
   model_config.num_labels = 30
 
   model =  AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
+  # model =  RobertaForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
   print(model.config)
   model.parameters
   model.to(device)
