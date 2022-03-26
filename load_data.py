@@ -2,7 +2,7 @@ import pickle as pickle
 import os
 import pandas as pd
 import torch
-
+import random
 
 class RE_Dataset(torch.utils.data.Dataset):
   """ Dataset 구성을 위한 class."""
@@ -17,6 +17,9 @@ class RE_Dataset(torch.utils.data.Dataset):
 
   def __len__(self):
     return len(self.labels)
+  
+  def get_labels(self):
+    return self.labels
 
 def preprocessing_dataset(dataset):
   """ 처음 불러온 csv 파일을 원하는 형태의 DataFrame으로 변경 시켜줍니다."""
@@ -35,8 +38,32 @@ def load_data(dataset_dir):
   """ csv 파일을 경로에 맡게 불러 옵니다. """
   pd_dataset = pd.read_csv(dataset_dir)
   dataset = preprocessing_dataset(pd_dataset)
-  
+
   return dataset
+
+def load_data_and_split(dataset_dir, val_ratio):
+  pd_dataset = pd.read_csv(dataset_dir)
+  dataset = preprocessing_dataset(pd_dataset)
+  labels = list(dataset['label'].unique())
+
+  train_ids = []
+  val_ids = []
+
+  for label in labels:
+    pd_label = dataset.loc[dataset['label']==label]
+    length = len(pd_label)
+    val_length = int(length * val_ratio)
+    temp_ids = list(pd_label['id'])
+    temp_val_ids = random.sample(temp_ids, val_length)
+    temp_train_ids = list(set(temp_ids) - set(temp_val_ids))
+
+    train_ids.extend(temp_train_ids)
+    val_ids.extend(temp_val_ids)
+  
+  train_dataset = dataset.loc[dataset['id'].isin(train_ids)]
+  val_dataset = dataset.loc[dataset['id'].isin(val_ids)]
+
+  return train_dataset, val_dataset
 
 def tokenized_dataset(dataset, tokenizer):
   """ tokenizer에 따라 sentence를 tokenizing 합니다."""
