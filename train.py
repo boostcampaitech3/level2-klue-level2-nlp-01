@@ -70,7 +70,7 @@ def label_to_num(label):
 
     return num_label
 
-def train(model_args, train_args, data_args, logging_args):
+def train(model_args, train_args, data_args):
 
 
     # load model and tokenizer
