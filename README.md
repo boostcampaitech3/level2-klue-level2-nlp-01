@@ -18,6 +18,11 @@ inference : `python inference.py` \(command\)
    - klue/roberta-large
    - configs in baseline code
 
+### 22.03.29
+- \[micro f1\] 55.8401 \[auprc] 54.0585
+   - xlm-roberta-large
+   - configs in baseline code
+
 
 ## edit
 ### 22.03.26
