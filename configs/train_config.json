@@ -1,0 +1,38 @@
+{
+  "ModelArguments" : {
+    "MODEL_NAME" : "google/mt5-large"
+  },
+  "TrainingArguments" : {
+    "report_to": "wandb",
+    "run_name": "mt5-large-baseline",
+    "output_dir": "./models",
+    "learning_rate": 3e-5,
+    "do_train": true,
+    "do_eval": true,
+    "do_predict": true,
+    "fp16": true,
+    "weight_decay": 0.01,
+    "warmup_steps": 200,
+    "per_device_train_batch_size": 32,
+    "per_device_eval_batch_size": 32,
+    "num_train_epochs": 10,
+    "evaluation_strategy": "steps",
+    "eval_steps": 1000,
+    "save_strategy": "steps",
+    "save_steps": 1000,
+    "logging_strategy" : "steps",
+    "logging_steps": 1000,
+    "save_total_limit": 5,
+    "load_best_model_at_end": true,
+    "metric_for_best_model": "micro f1 score",
+    "logging_dir": "./logs",
+    "lr_scheduler_type": "linear"
+  },
+  "DataArguments" : {
+    "seed" : 42,
+    "data" : "../dataset/train/train.csv"
+  },
+  "LoggingArguments" : {
+
+  }
+}

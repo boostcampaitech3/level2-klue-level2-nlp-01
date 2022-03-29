@@ -2,6 +2,7 @@ import pickle as pickle
 import os
 import pandas as pd
 import torch
+from collections import defaultdict
 
 
 class RE_Dataset(torch.utils.data.Dataset):
@@ -37,6 +38,23 @@ def load_data(dataset_dir):
   dataset = preprocessing_dataset(pd_dataset)
   
   return dataset
+
+# KBS) split함수
+def split_train_valid_stratified(dataset, split_ratio=0.2):
+    train_idx_list = [idx for idx in range(len(dataset['label']))]
+    valid_idx_list = []
+    indices_dict = defaultdict(list)
+    for idx, label in enumerate(dataset['label']):
+        indices_dict[label].append(idx)
+
+    for key, idx_list in indices_dict.items():
+        valid_idx_list.extend(idx_list[:int(len(idx_list) * split_ratio)])
+
+    train_idx_list = list(set(train_idx_list) - set(valid_idx_list))
+    train_dataset = dataset.iloc[train_idx_list]
+    valid_dataset = dataset.iloc[valid_idx_list]
+
+    return train_dataset, valid_dataset
 
 def tokenized_dataset(dataset, tokenizer):
   """ tokenizer에 따라 sentence를 tokenizing 합니다."""
