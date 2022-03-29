@@ -5,9 +5,11 @@ import torch
 import sklearn
 import numpy as np
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
-from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments, RobertaConfig, RobertaTokenizer, RobertaForSequenceClassification, BertTokenizer
+from transformers import ElectraModel, ElectraTokenizer, AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments, RobertaConfig, RobertaTokenizer, RobertaForSequenceClassification, BertTokenizer
 from load_data import *
+import wandb
 
+wandb.init(project="nlp_level2", entity="ssgyejin")
 
 def klue_re_micro_f1(preds, labels):
     """KLUE-RE micro f1 (except no_relation)"""
@@ -68,11 +70,13 @@ def label_to_num(label):
 def train():
   # load model and tokenizer
   # MODEL_NAME = "bert-base-uncased"
-  MODEL_NAME = "klue/bert-base"
-  tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+  # MODEL_NAME = "klue/bert-base"
+  MODEL_NAME = "monologg/koelectra-base-v3-discriminator"
+  # tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+  tokenizer = ElectraTokenizer.from_pretrained(MODEL_NAME)
 
   # load dataset
-  train_dataset = load_data("../dataset/train/train.csv")
+  train_dataset = load_data("~/dataset/train/train.csv")
   # dev_dataset = load_data("../dataset/train/dev.csv") # validation용 데이터는 따로 만드셔야 합니다.
 
   train_label = label_to_num(train_dataset['label'].values)
@@ -104,10 +108,10 @@ def train():
     output_dir='./results',          # output directory
     save_total_limit=5,              # number of total save model.
     save_steps=500,                 # model saving step.
-    num_train_epochs=20,              # total number of training epochs
-    learning_rate=5e-5,               # learning_rate
-    per_device_train_batch_size=16,  # batch size per device during training
-    per_device_eval_batch_size=16,   # batch size for evaluation
+    num_train_epochs=10,              # total number of training epochs
+    learning_rate=5e-4,               # learning_rate
+    per_device_train_batch_size=32,  # batch size per device during training
+    per_device_eval_batch_size=32,   # batch size for evaluation
     warmup_steps=500,                # number of warmup steps for learning rate scheduler
     weight_decay=0.01,               # strength of weight decay
     logging_dir='./logs',            # directory for storing logs
