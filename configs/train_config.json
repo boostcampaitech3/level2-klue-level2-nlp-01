@@ -33,6 +33,6 @@
     "data" : "../dataset/train/train.csv"
   },
   "LoggingArguments" : {
-
+    "WANDB_PROJECT" : "test-project"
   }
 }

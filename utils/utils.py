@@ -3,6 +3,7 @@ import random
 import torch
 import numpy as np
 import os
+import wandb
 
 def read_json(file):
     with open(file) as json_file:
@@ -20,6 +21,10 @@ class AttrDict(dict):
     def __init__(self, *args, **kwargs):
         super(AttrDict, self).__init__(*args, **kwargs)
         self.__dict__ = self
+        
+def wandb_login(project_name):
+    os.environ["WANDB_PROJECT"] = project_name
+    wandb.login()
 
 def set_seeds(seed=42):
     """ A function that fixes a random seed for reproducibility """

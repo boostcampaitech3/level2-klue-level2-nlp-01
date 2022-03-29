@@ -119,7 +119,7 @@ def train(model_args, train_args, data_args, logging_args):
         model=model,                                     # the instantiated 🤗 Transformers model to be trained
         args=training_args,                           # training arguments, defined above
         train_dataset=RE_train_dataset,             # training dataset
-        eval_dataset=RE_train_dataset,                   # evaluation dataset
+        eval_dataset=RE_dev_dataset,                   # evaluation dataset
         compute_metrics=compute_metrics             # define metrics function
     )
 
@@ -129,7 +129,8 @@ def train(model_args, train_args, data_args, logging_args):
 
 def main(args):
    model_args, train_args, data_args, logging_args = utils.get_arguments(args)
-   train(model_args, train_args, data_args, logging_args)
+   utils.wandb_login(logging_args.WANDB_PROJECT)
+   train(model_args, train_args, data_args)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
