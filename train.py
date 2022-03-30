@@ -8,15 +8,20 @@ from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_sc
 from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments, RobertaConfig, RobertaTokenizer, RobertaForSequenceClassification, BertTokenizer
 from utils import *
 import wandb
+from transformers.integrations import MyWandbCallback
 
 def train():
   # load model and tokenizer
   # MODEL_NAME = "bert-base-uncased"
   MODEL_NAME = "klue/roberta-large"
   tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+  # KBS) add special tokens
+  added_token_num = tokenizer.add_special_tokens({"additional_special_tokens":["[SUBJ]", "[/SUBJ]", "[OBJ]", "[/OBJ]"]})
 
   # load dataset
-  train_dataset = load_data("./dataset/train/train.csv")
+  # train_dataset = load_data("./dataset/train/train.csv")
+  # KBS) dataset 변경
+  train_dataset = load_data("./dataset/train/alternate_train.csv")
   train_dataset, dev_dataset = split_train_valid_stratified(train_dataset, split_ratio=0.2)
   # dev_dataset = load_data("../dataset/train/dev.csv") # validation용 데이터는 따로 만드셔야 합니다.
 
@@ -38,7 +43,9 @@ def train():
   model_config =  AutoConfig.from_pretrained(MODEL_NAME)
   model_config.num_labels = 30
 
-  model =  AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
+  model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
+  # KBS) add special tokens
+  model.resize_token_embeddings(tokenizer.vocab_size + added_token_num)
   print(model.config)
   print(model.parameters)
   model.to(device)
@@ -50,7 +57,7 @@ def train():
     save_total_limit=5,              # number of total save model.
     save_steps=500,                 # model saving step.
     num_train_epochs=10,              # total number of training epochs
-    learning_rate=5e-5,               # learning_rate
+    learning_rate=3e-5,               # learning_rate
     per_device_train_batch_size=32,  # batch size per device during training
     per_device_eval_batch_size=32,   # batch size for evaluation
     warmup_steps=500,                # number of warmup steps for learning rate scheduler
@@ -63,7 +70,7 @@ def train():
                                 # `epoch`: Evaluate every end of epoch.
     eval_steps = 500,            # evaluation step.
     load_best_model_at_end = True,
-    report_to=[],
+    report_to=['wandb'],
     metric_for_best_model='micro f1 score'
   )
 
@@ -74,6 +81,9 @@ def train():
     eval_dataset=RE_dev_dataset,             # evaluation dataset 지금은 eval 분리 X
     compute_metrics=compute_metrics         # define metrics function
   )
+  config_list = ['position_embedding_type', 'pad_token_id', '_name_or_path',
+                 'architectures', 'early_stopping']
+  # trainer.add_callback(MyWandbCallback(config_list))
 
   # trainer = Trainer(
   #   model=model,                         # the instantiated 🤗 Transformers model to be trained
@@ -85,11 +95,13 @@ def train():
 
 
   # train model
-  wandb.watch(model)
   trainer.train()
   model.save_pretrained('./best_model')
 
 if __name__ == '__main__':
-  # os.environ["WANDB_DISABLED"] = "true"
-  wandb.init(project="test-project", entity="plzanswer")
+  os.environ['WANDB_API_KEY'] = 'f5b1f2d16ad90a4bfefca9e344309d152509ac3b'
+  os.environ['WANDB_ENTITY'] = 'plzanswer'
+  os.environ['WANDB_PROJECT'] = 'test-project'
+  os.environ['WANDB_NAME'] ="KBS-Test-Run"
+  os.environ['WANDB_LOG_MODEL'] = 'True'
   train()

@@ -9,6 +9,9 @@ from torch.optim.lr_scheduler import LambdaLR
 import torch.nn.functional as F
 import sklearn
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
+import numpy as np
+import re
+import wandb
 
 class RE_Dataset(torch.utils.data.Dataset):
   """ Dataset 구성을 위한 class."""
@@ -29,18 +32,46 @@ def preprocessing_dataset(dataset):
   """ 현재 구현되어 있는 부분은 개체에 대한 단어만 데이터셋에 들어가게됨"""
   subject_entity = []
   object_entity = []
+  subject_span = []
+  object_span = []
   for i,j in zip(dataset['subject_entity'], dataset['object_entity']): # word, start_idx, end_idx, type
-    i = i[1:-1].split(',')[0].split(':')[1] # 'word': '비틀즈', ..., 'type': 'ORG' => '비틀즈'
-    j = j[1:-1].split(',')[0].split(':')[1] # 'word': '조지 해리슨', ..., 'type': 'PER' => '조지 해리슨'
+    sub_data = i[1:-1]
+    obj_data = j[1:-1]
 
-    subject_entity.append(i)
-    object_entity.append(j)
-  out_dataset = pd.DataFrame({'id':dataset['id'], 'sentence':dataset['sentence'],'subject_entity':subject_entity,'object_entity':object_entity,'label':dataset['label'],})
+    sub_data_parsed = re.findall(r"'[^\']+'", sub_data)
+    obj_data_parsed = re.findall(r"'[^\']+'", obj_data)
+
+    sub_word = sub_data_parsed[1][1:-1]
+    obj_word = obj_data_parsed[1][1:-1]
+
+    sub_data = i[1:-1].split(', ')
+    obj_data = j[1:-1].split(', ')
+    for d in sub_data:
+        if d.startswith("'start_idx'"):
+            sub_start_idx = d.split(': ')[1]
+        if d.startswith("'end_idx'"):
+            sub_end_idx = d.split(': ')[1]
+    sub_idx = (int(sub_start_idx), int(sub_end_idx))
+
+    for d in obj_data:
+        if d.startswith("'start_idx'"):
+            obj_start_idx = d.split(': ')[1]
+        if d.startswith("'end_idx'"):
+            obj_end_idx = d.split(': ')[1]
+    obj_idx = (int(obj_start_idx), int(obj_end_idx))
+
+    subject_entity.append(sub_word)
+    object_entity.append(obj_word)
+    subject_span.append(sub_idx)
+    object_span.append(obj_idx)
+  out_dataset = pd.DataFrame({'id':dataset['id'], 'sentence':dataset['sentence'],'subject_entity':subject_entity,'object_entity':object_entity,
+                              'subject_span':subject_span, 'object_span':object_span, 'label':dataset['label']})
   return out_dataset
 
 def load_data(dataset_dir):
   """ csv 파일을 경로에 맡게 불러 옵니다. """
-  pd_dataset = pd.read_csv(dataset_dir)
+  alternate_delimiter = "\t"
+  pd_dataset = pd.read_csv(dataset_dir, sep=alternate_delimiter, engine='python')
   dataset = preprocessing_dataset(pd_dataset)
   
   return dataset
@@ -64,21 +95,41 @@ def split_train_valid_stratified(dataset, split_ratio=0.2):
 
 def tokenized_dataset(dataset, tokenizer):
   """ tokenizer에 따라 sentence를 tokenizing 합니다."""
-  concat_entity = []
-  for e01, e02 in zip(dataset['subject_entity'], dataset['object_entity']):
-    temp = ''
-    temp = e01 + '[SEP]' + e02
-    concat_entity.append(temp)
+  original_sentence = list(dataset['sentence'])
+  modified_sentence = []
+  for idx, (subj, obj) in enumerate(zip(dataset['subject_span'], dataset['object_span'])):
+      if subj[0] < obj[0]: # subject_entity가 먼저 출현
+          modified_str = [original_sentence[idx][:subj[0]],
+                          '[SUBJ]',
+                          original_sentence[idx][subj[0]:subj[1]+1],
+                          '[/SUBJ]',
+                          original_sentence[idx][subj[1]+1:obj[0]],
+                          '[OBJ]',
+                          original_sentence[idx][obj[0]:obj[1]+1],
+                          '[/OBJ]',
+                          original_sentence[idx][obj[1]+1:]]
+          modified_sentence.append(''.join(modified_str))
+      else: # object_entity가 먼저 출현
+          modified_str = [original_sentence[idx][:obj[0]],
+                          '[OBJ]',
+                          original_sentence[idx][obj[0]:obj[1]+1],
+                          '[/OBJ]',
+                          original_sentence[idx][obj[1]+1:subj[0]],
+                          '[SUBJ]',
+                          original_sentence[idx][subj[0]:subj[1]+1],
+                          '[/SUBJ]',
+                          original_sentence[idx][subj[1]+1:]]
+
+          modified_sentence.append(''.join(modified_str))
 
   tokenized_sentences = tokenizer(
-      concat_entity,
-      list(dataset['sentence']),
+      modified_sentence,
       return_tensors="pt",
       padding=True,
       truncation=True,
       max_length=256,
       add_special_tokens=True,
-      ) # [CLS]subject_entity[SEP]object_entity[SEP]sentence.....[PAD][PAD][PAD][SEP]
+      ) # [CLS]sentence..[SUBJ]subject[/SUBJ]..[OBJ]object[/OBJ]..[SEP][PAD][PAD][PAD]
         # => input_ids, token_type_ids, attention_mask
   return tokenized_sentences
 
@@ -162,6 +213,7 @@ def compute_metrics(pred):
   f1 = klue_re_micro_f1(preds, labels)
   auprc = klue_re_auprc(probs, labels)
   acc = accuracy_score(labels, preds) # 리더보드 평가에는 포함되지 않습니다.
+  wandb.log({"micro f1": f1, "auprc": auprc, "acc": acc})
 
   return {
       'micro f1 score': f1,
@@ -177,3 +229,48 @@ def label_to_num(label):
     num_label.append(dict_label_to_num[v])
   
   return num_label
+
+def make_alternative_set():
+    first = True
+    alternate_delimiter = "\t"
+    new_file = open("./dataset/train/alternate_train.csv", 'a')
+    with open("./dataset/train/train.csv", 'r') as f:
+        while True:
+            line = f.readline()
+            if first:
+                line = line.replace(",", alternate_delimiter) # 맨 위의 column줄을 교체함
+                first = False
+                new_file.write(line)
+                continue
+            if not line:
+                break
+            line = re.sub(',', alternate_delimiter, line, 1) # 처음 만나는 comma를 교체함(id)
+            for _ in range(2): # 맨 뒤에 2개의 comma를 교체함
+                comma_idx = line.rfind(',')
+                line = line[:comma_idx] + alternate_delimiter + line[comma_idx+1:]
+            line = re.sub(",\"{'word':", alternate_delimiter + "\"{'word':", line) # 나머지 중간의 2개의 comma를 교체함
+            new_file.write(line)
+
+    new_file.close()
+
+    first = True
+    new_file = open("./dataset/test/alternate_test.csv", 'a')
+    with open("./dataset/test/test_data.csv", 'r') as f:
+        while True:
+            line = f.readline()
+            if first:
+                line = line.replace(",", alternate_delimiter)
+                first = False
+                new_file.write(line)
+                continue
+            if not line:
+                break
+            line = re.sub(',', alternate_delimiter, line, 1) # 처음 만나는 comma를 교체함(id)
+            for _ in range(2): # 맨 뒤에 2개의 comma를 교체함
+                comma_idx = line.rfind(',')
+                line = line[:comma_idx] + alternate_delimiter + line[comma_idx+1:]
+            line = re.sub(",\"{'word':", alternate_delimiter + "\"{'word':", line) # 나머지 중간의 2개의 comma를 교체함
+            new_file.write(line)
+
+    new_file.close()
+    print("Finished!")

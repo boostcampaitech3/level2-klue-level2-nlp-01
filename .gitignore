@@ -1,3 +1,7 @@
 .DS_store
 __pycache__/
 dataset/
+best_model/
+results/
+wandb/
+prediction/
