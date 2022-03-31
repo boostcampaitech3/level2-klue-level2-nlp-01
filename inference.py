@@ -24,7 +24,8 @@ def inference(model, tokenized_sent, device):
       outputs = model(
           input_ids=data['input_ids'].to(device),
           attention_mask=data['attention_mask'].to(device),
-          token_type_ids=data['token_type_ids'].to(device)
+          token_type_ids=data['token_type_ids'].to(device),
+          entity_ids=data['entity_ids'].to(device),
           )
     logits = outputs[0]
     prob = F.softmax(logits, dim=-1).detach().cpu().numpy()
@@ -65,13 +66,13 @@ def main(args):
   """
   device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
   # load tokenizer
-  Tokenizer_NAME = "klue/roberta-large"
-  tokenizer = AutoTokenizer.from_pretrained(Tokenizer_NAME)
+  MODEL_NAME = args.model_dir # model dir.
+  tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+  # added_token_num = tokenizer.add_special_tokens({"additional_special_tokens":["[SUBJ]", "[/SUBJ]", "[OBJ]", "[/OBJ]"]})
 
   ## load my model
-  MODEL_NAME = args.model_dir # model dir.
-  model = AutoModelForSequenceClassification.from_pretrained(args.model_dir)
-  model.parameters
+  model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME)
+  print(model.parameters)
   model.to(device)
 
   ## load test datset

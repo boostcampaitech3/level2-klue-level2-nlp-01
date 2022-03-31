@@ -12,11 +12,12 @@ from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_sc
 import numpy as np
 import re
 import wandb
+from transformers.models.roberta.modeling_roberta import *
 
 class RE_Dataset(torch.utils.data.Dataset):
   """ Dataset 구성을 위한 class."""
   def __init__(self, pair_dataset, labels):
-    self.pair_dataset = pair_dataset # {'input_ids': ~, 'token_type_ids': ~, 'attention_mask': ~}
+    self.pair_dataset = pair_dataset # {'input_ids': ~, 'token_type_ids': ~, 'attention_mask': ~, 'entity_ids' : ~}
     self.labels = labels # [0, 1, 1, 0, 0, ...]
 
   def __getitem__(self, idx):
@@ -131,6 +132,21 @@ def tokenized_dataset(dataset, tokenizer):
       add_special_tokens=True,
       ) # [CLS]sentence..[SUBJ]subject[/SUBJ]..[OBJ]object[/OBJ]..[SEP][PAD][PAD][PAD]
         # => input_ids, token_type_ids, attention_mask
+    # for entity_ids
+  entity_ids = torch.zeros_like(tokenized_sentences.input_ids)
+  s_subj_id = tokenizer.get_added_vocab()['[SUBJ]']
+  e_subj_id = tokenizer.get_added_vocab()['[/SUBJ]']
+  s_obj_id = tokenizer.get_added_vocab()['[OBJ]']
+  e_obj_id = tokenizer.get_added_vocab()['[/OBJ]']
+  for idx, input_id in enumerate(tokenized_sentences.input_ids):
+    subj_idx_tensor = ((input_id == s_subj_id) + (input_id == e_subj_id)).nonzero(as_tuple=True)[0]
+    obj_idx_tensor = ((input_id == s_obj_id) + (input_id == e_obj_id)).nonzero(as_tuple=True)[0]
+    for i in range(subj_idx_tensor[0]+1, subj_idx_tensor[1]):
+        entity_ids[idx][i] = 1
+    for i in range(obj_idx_tensor[0]+1, obj_idx_tensor[1]):
+        entity_ids[idx][i] = 2
+    
+    tokenized_sentences['entity_ids'] = entity_ids
   return tokenized_sentences
 
 # KBS) ImbalancedSamplerTrainer
@@ -274,3 +290,88 @@ def make_alternative_set():
 
     new_file.close()
     print("Finished!")
+
+class RobertaWithEntityEmbeddings(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.word_embeddings = nn.Embedding(config.vocab_size, config.hidden_size, padding_idx=config.pad_token_id)
+        self.position_embeddings = nn.Embedding(config.max_position_embeddings, config.hidden_size)
+        self.token_type_embeddings = nn.Embedding(config.type_vocab_size, config.hidden_size)
+        # Added Entity embeddings
+        self.entity_embeddings = nn.Embedding(3, config.hidden_size)
+        self.LayerNorm = nn.LayerNorm(config.hidden_size, eps=config.layer_norm_eps)
+        self.dropout = nn.Dropout(config.hidden_dropout_prob)
+        # position_ids (1, len position emb) is contiguous in memory and exported when serialized
+        self.position_embedding_type = getattr(config, "position_embedding_type", "absolute")
+        self.register_buffer("position_ids", torch.arange(config.max_position_embeddings).expand((1, -1)))
+        if version.parse(torch.__version__) > version.parse("1.6.0"):
+            self.register_buffer(
+                "token_type_ids",
+                torch.zeros(self.position_ids.size(), dtype=torch.long, device=self.position_ids.device),
+                persistent=False,
+            )
+
+        # End copy
+        self.padding_idx = config.pad_token_id
+        self.position_embeddings = nn.Embedding(
+            config.max_position_embeddings, config.hidden_size, padding_idx=self.padding_idx
+        )
+
+    def forward(
+        self, input_ids=None, token_type_ids=None, position_ids=None, entity_ids=None, inputs_embeds=None, past_key_values_length=0
+    ):
+        assert entity_ids is not None, "entity_ids를 입력 받아야 합니다."
+        if position_ids is None:
+            if input_ids is not None:
+                # Create the position ids from the input token ids. Any padded tokens remain padded.
+                position_ids = create_position_ids_from_input_ids(input_ids, self.padding_idx, past_key_values_length)
+            else:
+                position_ids = self.create_position_ids_from_inputs_embeds(inputs_embeds)
+
+        if input_ids is not None:
+            input_shape = input_ids.size()
+        else:
+            input_shape = inputs_embeds.size()[:-1]
+
+        seq_length = input_shape[1]
+
+        # Setting the token_type_ids to the registered buffer in constructor where it is all zeros, which usually occurs
+        # when its auto-generated, registered buffer helps users when tracing the model without passing token_type_ids, solves
+        # issue #5664
+        if token_type_ids is None:
+            if hasattr(self, "token_type_ids"):
+                buffered_token_type_ids = self.token_type_ids[:, :seq_length]
+                buffered_token_type_ids_expanded = buffered_token_type_ids.expand(input_shape[0], seq_length)
+                token_type_ids = buffered_token_type_ids_expanded
+            else:
+                token_type_ids = torch.zeros(input_shape, dtype=torch.long, device=self.position_ids.device)
+
+        if inputs_embeds is None:
+            inputs_embeds = self.word_embeddings(input_ids)
+        token_type_embeddings = self.token_type_embeddings(token_type_ids)
+
+        embeddings = inputs_embeds + token_type_embeddings
+        if self.position_embedding_type == "absolute":
+            position_embeddings = self.position_embeddings(position_ids)
+            embeddings += position_embeddings
+        embeddings += self.entity_embeddings(entity_ids)
+        embeddings = self.LayerNorm(embeddings)
+        embeddings = self.dropout(embeddings)
+        return embeddings
+
+    def create_position_ids_from_inputs_embeds(self, inputs_embeds):
+        """
+        We are provided embeddings directly. We cannot infer which are padded so just generate sequential position ids.
+
+        Args:
+            inputs_embeds: torch.Tensor
+
+        Returns: torch.Tensor
+        """
+        input_shape = inputs_embeds.size()[:-1]
+        sequence_length = input_shape[1]
+
+        position_ids = torch.arange(
+            self.padding_idx + 1, sequence_length + self.padding_idx + 1, dtype=torch.long, device=inputs_embeds.device
+        )
+        return position_ids.unsqueeze(0).expand(input_shape)

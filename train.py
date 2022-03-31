@@ -8,7 +8,6 @@ from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_sc
 from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments, RobertaConfig, RobertaTokenizer, RobertaForSequenceClassification, BertTokenizer
 from utils import *
 import wandb
-from transformers.integrations import MyWandbCallback
 
 def train():
   # load model and tokenizer
@@ -46,7 +45,6 @@ def train():
   model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME, config=model_config)
   # KBS) add special tokens
   model.resize_token_embeddings(tokenizer.vocab_size + added_token_num)
-  print(model.config)
   print(model.parameters)
   model.to(device)
   
@@ -58,6 +56,7 @@ def train():
     save_steps=500,                 # model saving step.
     num_train_epochs=10,              # total number of training epochs
     learning_rate=3e-5,               # learning_rate
+    gradient_accumulation_steps=2,
     per_device_train_batch_size=32,  # batch size per device during training
     per_device_eval_batch_size=32,   # batch size for evaluation
     warmup_steps=500,                # number of warmup steps for learning rate scheduler
@@ -75,28 +74,26 @@ def train():
   )
 
   trainer = ImbalancedSamplerTrainer(
-    model=model,                         # the instantiated 🤗 Transformers model to be trained
-    args=training_args,                  # training arguments, defined above
-    train_dataset=RE_train_dataset,         # training dataset
-    eval_dataset=RE_dev_dataset,             # evaluation dataset 지금은 eval 분리 X
-    compute_metrics=compute_metrics         # define metrics function
+    model=model,                         
+    args=training_args,                 
+    train_dataset=RE_train_dataset,         
+    eval_dataset=RE_dev_dataset,            
+    compute_metrics=compute_metrics      
   )
-  config_list = ['position_embedding_type', 'pad_token_id', '_name_or_path',
-                 'architectures', 'early_stopping']
-  # trainer.add_callback(MyWandbCallback(config_list))
 
   # trainer = Trainer(
-  #   model=model,                         # the instantiated 🤗 Transformers model to be trained
-  #   args=training_args,                  # training arguments, defined above
-  #   train_dataset=RE_train_dataset,         # training dataset
-  #   eval_dataset=RE_dev_dataset,             # evaluation dataset 지금은 eval 분리 X
-  #   compute_metrics=compute_metrics         # define metrics function
-  # )
+  #    model=model,                       
+  #    args=training_args,                
+  #    train_dataset=RE_train_dataset,       
+  #    eval_dataset=RE_dev_dataset,          
+  #    compute_metrics=compute_metrics      
+  #  )
 
 
   # train model
   trainer.train()
   model.save_pretrained('./best_model')
+  tokenizer.save_pretrained('./best_model')
 
 if __name__ == '__main__':
   os.environ['WANDB_API_KEY'] = 'f5b1f2d16ad90a4bfefca9e344309d152509ac3b'
