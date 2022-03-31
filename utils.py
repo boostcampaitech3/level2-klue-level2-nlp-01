@@ -141,9 +141,9 @@ def tokenized_dataset(dataset, tokenizer):
   for idx, input_id in enumerate(tokenized_sentences.input_ids):
     subj_idx_tensor = ((input_id == s_subj_id) + (input_id == e_subj_id)).nonzero(as_tuple=True)[0]
     obj_idx_tensor = ((input_id == s_obj_id) + (input_id == e_obj_id)).nonzero(as_tuple=True)[0]
-    for i in range(subj_idx_tensor[0]+1, subj_idx_tensor[1]):
+    for i in range(subj_idx_tensor[0], subj_idx_tensor[1] + 1):
         entity_ids[idx][i] = 1
-    for i in range(obj_idx_tensor[0]+1, obj_idx_tensor[1]):
+    for i in range(obj_idx_tensor[0], obj_idx_tensor[1] + 1):
         entity_ids[idx][i] = 2
     
     tokenized_sentences['entity_ids'] = entity_ids
@@ -159,7 +159,7 @@ class ImbalancedSamplerTrainer(Trainer):
         # forward pass
         outputs = model(**inputs)
         logits = outputs.get("logits")
-        with open('label_counters.pkl', 'rb') as f:
+        with open('/opt/ml/code/level2-klue-level2-nlp-01/label_counters.pkl', 'rb') as f:
             alpha = torch.tensor(pickle.load(f)).to(one_hot_labels.get_device())
         alpha = one_hot_labels * alpha * 100.0
         alpha = torch.sum(alpha, dim=1, keepdim=True)
@@ -177,7 +177,7 @@ def focal_loss(model, inputs, return_outputs=False):
         # forward pass
         outputs = model(**inputs)
         logits = outputs.get("logits")
-        with open('label_counters.pkl', 'rb') as f:
+        with open('/opt/ml/code/level2-klue-level2-nlp-01/label_counters.pkl', 'rb') as f:
             alpha = torch.tensor(pickle.load(f)).to(one_hot_labels.get_device())
         alpha = one_hot_labels * alpha * 100.0
         alpha = torch.sum(alpha, dim=1, keepdim=True)
@@ -239,7 +239,7 @@ def compute_metrics(pred):
 
 def label_to_num(label):
   num_label = []
-  with open('dict_label_to_num.pkl', 'rb') as f:
+  with open('/opt/ml/code/level2-klue-level2-nlp-01/dict_label_to_num.pkl', 'rb') as f:
     dict_label_to_num = pickle.load(f)
   for v in label:
     num_label.append(dict_label_to_num[v])
