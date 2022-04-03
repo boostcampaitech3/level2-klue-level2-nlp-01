@@ -1,7 +1,11 @@
+from collections import defaultdict
+from logging.config import valid_ident
 import pickle as pickle
 import os
 import pandas as pd
 import torch
+import random
+import re
 
 
 class RE_Dataset(torch.utils.data.Dataset):
@@ -29,14 +33,50 @@ def preprocessing_dataset(dataset):
     subject_entity.append(i)
     object_entity.append(j)
   out_dataset = pd.DataFrame({'id':dataset['id'], 'sentence':dataset['sentence'],'subject_entity':subject_entity,'object_entity':object_entity,'label':dataset['label'],})
-  return out_dataset
+  
+  augmented = make_augmented(out_dataset, 'swap', len(out_dataset))
+  
+  augmented_data = pd.concat([out_dataset, augmented])
+  
+  augmented2 = make_augmented(out_dataset, 'delete', len(augmented_data))
+  
+  augmented_data = pd.concat([augmented_data, augmented2])
+  
+  
+  return augmented_data
+
+def make_augmented(dataset, eda, num):
+  augmented = []
+  for i in range(len(dataset)):
+    augmented_sentences = []
+    augmented_sentences = EDA(sentence=dataset['sentence'][i], subject=dataset['subject_entity'][i], object=['object_entity'][i], what_eda=eda)
+    augmented.loc[i] = [num+i, augmented_sentences, dataset['subject_eintity'][i], dataset['object_entity'][i], dataset['label'][i]]
+    
+    return augmented
 
 def load_data(dataset_dir):
   """ csv 파일을 경로에 맡게 불러 옵니다. """
-  pd_dataset = pd.read_csv(dataset_dir)
+  pd_dataset = pd.read_csv(dataset_dir, sep='\t')
   dataset = preprocessing_dataset(pd_dataset)
   
   return dataset
+
+def split_train_valid_stratified(dataset, split_ratio = 0.2):
+  train_idx_list = [idx for idx in range(len(dataset['label']))]
+  vaild_idx_list = []
+  indices_dict = defaultdict(list)
+  for idx, label in enumerate(dataset['label']):
+    indices_dict[label].append(idx)
+  
+  for key, idx_list in indices_dict.items():
+    vaild_idx_list.extend(idx_list[:int(len(idx_list) * split_ratio)])
+    
+  train_idx_list = list(set(train_idx_list) - set(vaild_idx_list))
+  train_dataset = dataset.iloc[train_idx_list]
+  valid_dataset = dataset.iloc[vaild_idx_list]
+  
+  return train_dataset, valid_dataset
+  
 
 def tokenized_dataset(dataset, tokenizer):
   """ tokenizer에 따라 sentence를 tokenizing 합니다."""
@@ -55,3 +95,61 @@ def tokenized_dataset(dataset, tokenizer):
       add_special_tokens=True,
       )
   return tokenized_sentences
+
+def random_deletion(words, sub, obj, prob):
+  if len(words) == 1:
+    return words
+  
+  new_words = []
+  for word in words:
+    r = random.uniform(0, 1)
+    if r > prob or (word in sub) or (sub in word) or (word in obj) or (obj in word):
+      new_words.append(word)
+  
+  if len(new_words) == 0:
+    rand_int = random.randint(0, len(word)-1)
+    return [words[rand_int]]
+  
+  return new_words
+
+def random_swap(words, n):
+  new_words = words.copy()
+  for _ in range(n):
+    new_words = swap_word(new_words)
+    
+    return new_words
+
+def swap_word(new_words):
+  random_idx_1 = random.randint(0, len(new_words)-1)
+  random_idx_2 = random_idx_1
+  counter = 0
+  
+  while random_idx_2 == random_idx_1:
+    random_idx_2 = random.randint(0, len(new_words)-1)
+    counter += 1
+    if counter > 3:
+      return new_words
+    
+  new_words[random_idx_1], new_words[random_idx_2] = new_words[random_idx_2], new_words[random_idx_1]
+  return new_words
+
+def EDA(sentence, subject, object, what_eda, alpha_rs = 0.1, p_rd = 0.15):
+  # sentence = get_only_hangul(sentence)
+  words = sentence.split(' ')
+  words = [words for word in words if word is not ""]
+  num_words = len(words)
+  
+  n_rs = max(1, int(alpha_rs * num_words))
+  
+  #random swap
+  if what_eda == 'swap':
+    augmented_sentences = random_swap(words, n_rs)
+    
+  #random delete, subject와 object에 있는 것은 삭제하면 안됨!
+  if what_eda == 'delete':
+    augmented_sentences = random_deletion(words, subject, object, p_rd)
+
+  return ' '.join(augmented_sentences)
+  
+  
+  
