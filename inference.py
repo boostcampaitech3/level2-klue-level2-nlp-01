@@ -9,6 +9,7 @@ import pickle as pickle
 import numpy as np
 import argparse
 from tqdm import tqdm
+import os
 
 def inference(model, tokenized_sent, device):
   """
@@ -65,22 +66,37 @@ def main(args):
   """
   device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
   # load tokenizer
-  Tokenizer_NAME = "klue/bert-base"
+  Tokenizer_NAME = "klue/roberta-large"
   tokenizer = AutoTokenizer.from_pretrained(Tokenizer_NAME)
+  
+  num_of_fold = args.num_of_fold
+  pred = [0] * 7765
+  prob = [[0] * 30 for _ in range(7765)]
+  
+  for fold in range(1, num_of_fold+1):
+      ## load test datset
+    
+    print(f"==========={fold} start!!==============")
+    
+    ## load my model
+    MODEL_NAME = os.path.join(args.model_dir, f'{fold}')
+    model = AutoModelForSequenceClassification.from_pretrained(args.model_dir)
+    model.parameters
+    model.to(device)
+    
+    test_dataset_dir = "../dataset/test/alternate_test.csv"
+    test_id, test_dataset, test_label = load_test_dataset(test_dataset_dir, tokenizer)
+    Re_test_dataset = RE_Dataset(test_dataset ,test_label)
 
-  ## load my model
-  MODEL_NAME = args.model_dir # model dir.
-  model = AutoModelForSequenceClassification.from_pretrained(args.model_dir)
-  model.parameters
-  model.to(device)
-
-  ## load test datset
-  test_dataset_dir = "../dataset/test/test_data.csv"
-  test_id, test_dataset, test_label = load_test_dataset(test_dataset_dir, tokenizer)
-  Re_test_dataset = RE_Dataset(test_dataset ,test_label)
-
-  ## predict answer
-  pred_answer, output_prob = inference(model, Re_test_dataset, device) # model에서 class 추론
+    ## predict answer
+    pred_answer, output_prob = inference(model, Re_test_dataset, device) # model에서 class 추론
+    
+    pred = [x + y for x, y in zip(pred, pred_answer)]
+    prob = [[x + y for x, y in zip(prob[i], output_prob[i])] for i in range(7765)]
+    
+    
+  pred = [x/num_of_fold for x in pred]
+  
   pred_answer = num_to_label(pred_answer) # 숫자로 된 class를 원래 문자열 라벨로 변환.
   
   ## make csv file with predicted answer
@@ -91,11 +107,14 @@ def main(args):
   output.to_csv('./prediction/submission.csv', index=False) # 최종적으로 완성된 예측한 라벨 csv 파일 형태로 저장.
   #### 필수!! ##############################################
   print('---- Finish! ----')
+  
+  
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   
   # model dir
   parser.add_argument('--model_dir', type=str, default="./best_model")
+  parser.add_argument('--num_of_fold)', type=int, default=5)
   args = parser.parse_args()
   print(args)
   main(args)
