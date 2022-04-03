@@ -169,7 +169,7 @@ def train(args):
 
     # train model
     trainer.train()
-    model.save_pretrained('./best_model')
+    model.save_pretrained(f'./best_model/{fold_index}')
     print(f'------{fold_index+1} finished------')
   
   print('======Finsh train======')
