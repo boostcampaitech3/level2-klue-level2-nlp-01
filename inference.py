@@ -1,6 +1,7 @@
 from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments
 from torch.utils.data import DataLoader
 from utils import *
+from models import *
 import pandas as pd
 import torch
 import torch.nn.functional as F
@@ -65,13 +66,9 @@ def main(args):
     주어진 dataset csv 파일과 같은 형태일 경우 inference 가능한 코드입니다.
   """
   device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-  # load tokenizer
-  MODEL_NAME = args.model_dir # model dir.
-  tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-  # added_token_num = tokenizer.add_special_tokens({"additional_special_tokens":["[SUBJ]", "[/SUBJ]", "[OBJ]", "[/OBJ]"]})
-
-  ## load my model
-  model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME)
+  # load tokenizer, model
+  tokenizer = AutoTokenizer.from_pretrained(args.model_dir)
+  model = RobertaNotUsingClsForKlueReTask.from_pretrained(args.model_dir)
   print(model.parameters)
   model.to(device)
 
@@ -100,4 +97,3 @@ if __name__ == '__main__':
   args = parser.parse_args()
   print(args)
   main(args)
-  
