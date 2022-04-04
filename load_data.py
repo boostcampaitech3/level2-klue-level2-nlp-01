@@ -3,7 +3,7 @@ import os
 import pandas as pd
 import torch
 from collections import defaultdict
-
+import random
 
 class RE_Dataset(torch.utils.data.Dataset):
   """ Dataset 구성을 위한 class."""
@@ -34,7 +34,7 @@ def preprocessing_dataset(dataset):
 
 def load_data(dataset_dir):
   """ csv 파일을 경로에 맡게 불러 옵니다. """
-  pd_dataset = pd.read_csv(dataset_dir)
+  pd_dataset = pd.read_csv(dataset_dir, sep='\t')
   dataset = preprocessing_dataset(pd_dataset)
   
   return dataset
@@ -73,4 +73,125 @@ def tokenized_dataset(dataset, tokenizer):
       add_special_tokens=True,
       )
   return tokenized_sentences
+
+
+class RE_Dataset_test_mt5(torch.utils.data.Dataset):
+    """MT5ForConditionalGeneration 위한 class """
+
+    def __init__(self, dataset, tokenizer, max_len=384):
+        self.data = dataset
+        self.max_len = max_len
+        self.tokenizer = tokenizer
+        self.inputs = []
+        self._build()
+
+    def __len__(self):
+        return len(self.inputs)
+
+    def __getitem__(self, index):
+        source_ids = self.inputs[index]["input_ids"].squeeze()
+        src_mask = self.inputs[index]["attention_mask"].squeeze()  # might need to squeeze
+        #         target_mask = self.targets[index]["attention_mask"].squeeze()  # might need to squeeze
+
+        return {"input_ids": source_ids,
+                "attention_mask": src_mask}
+
+    def _build(self):
+        for index, row in self.data.iterrows():
+            subject_entity = row['subject_entity'].strip()
+            object_entity = row['object_entity'].strip()
+            sentence = row['sentence'].strip()
+
+            # option1
+            # input_ = ''
+            # input_ = input_ + 'What is the relationship between ' + subject_entity + ' and ' + \
+            #          object_entity + ' in the following sentence? ' + sentence
+
+            # option2
+            input_ = '[Relation Extraction] '
+            input_ = input_ + 'subject: ' + subject_entity + ' object: ' + \
+                     object_entity + ' sentence: ' + sentence
+
+            # tokenize inputs
+            tokenized_inputs = self.tokenizer.batch_encode_plus(
+                [input_],
+                # padding="longest",
+                max_length=self.max_len,
+                pad_to_max_length=True,
+                return_tensors="pt"
+            )
+
+            self.inputs.append(tokenized_inputs)
+
+class RE_Dataset_mt5(torch.utils.data.Dataset):
+    """MT5ForConditionalGeneration 위한 class """
+
+    def __init__(self, dataset, tokenizer, max_len=384):
+        self.data = dataset
+        self.max_len = max_len
+        self.tokenizer = tokenizer
+        self.inputs = []
+        self.targets = []
+        self._build()
+
+    def __len__(self):
+        return len(self.inputs)
+
+    def __getitem__(self, index):
+        source_ids = self.inputs[index]["input_ids"].squeeze()
+        target_ids = self.targets[index]["input_ids"].squeeze()
+        target_ids[target_ids == self.tokenizer.pad_token_id] = -100
+
+        src_mask = self.inputs[index]["attention_mask"].squeeze()  # might need to squeeze
+        #         target_mask = self.targets[index]["attention_mask"].squeeze()  # might need to squeeze
+
+        return {"input_ids": source_ids,
+                "attention_mask": src_mask,
+                "labels": target_ids}
+
+    def _build(self):
+        for index, row in self.data.iterrows():
+            subject_entity = row['subject_entity'].strip()
+            object_entity = row['object_entity'].strip()
+            sentence = row['sentence'].strip()
+
+            # option1
+            # input_ = ''
+            # input_ = input_ + 'What is the relationship between ' + subject_entity + ' and ' + \
+            #          object_entity + ' in the following sentence? ' + sentence
+
+            # option2
+            input_ = '[Relation Extraction] '
+            input_ = input_ + 'subject: ' + subject_entity + ' object: ' + \
+                     object_entity + ' sentence: ' + sentence
+
+            target_ = ''
+            label_ = row['label'].strip()
+            target_ = target_ + label_
+
+            # tokenize inputs
+            tokenized_inputs = self.tokenizer.batch_encode_plus(
+                [input_],
+                # padding="longest",
+                max_length=self.max_len,
+                pad_to_max_length=True,
+                return_tensors="pt"
+            )
+            # tokenize targets
+            tokenized_targets = self.tokenizer.batch_encode_plus(
+                [target_],
+                # padding="longest",
+                max_length=12,
+                pad_to_max_length=True,
+                return_tensors="pt"
+            )
+
+            self.inputs.append(tokenized_inputs)
+            self.targets.append(tokenized_targets)
+
+        shuffle_lst = list(zip(self.inputs, self.targets))
+        random.shuffle(shuffle_lst)
+        self.inputs, self.targets = zip(*shuffle_lst)
+
+
 

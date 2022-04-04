@@ -1,8 +1,10 @@
 {
   "ModelArguments" : {
-    "MODEL_NAME" : "google/mt5-large"
+    "MODEL_NAME" : "google/mt5-large",
+    "architecture" : "AutoModelForSequenceClassification"
   },
   "TrainingArguments" : {
+    "report_to": "wandb",
     "output_dir": "./models",
     "learning_rate": 3e-5,
     "do_train": true,
@@ -28,9 +30,11 @@
   },
   "DataArguments" : {
     "seed" : 42,
-    "data" : "../dataset/train/train.csv"
+    "data" : "../dataset/train/alternate_train.csv"
   },
   "LoggingArguments" : {
-
+    "project" : "test-project",
+    "entity" : "plzanswer",
+    "name": "mt5-large-baseline"
   }
 }

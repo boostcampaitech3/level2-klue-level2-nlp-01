@@ -22,9 +22,9 @@ class AttrDict(dict):
         super(AttrDict, self).__init__(*args, **kwargs)
         self.__dict__ = self
         
-def wandb_login(project_name):
-    os.environ["WANDB_PROJECT"] = project_name
+def wandb_login(logging_args):
     wandb.login()
+    wandb.init(**logging_args)
 
 def set_seeds(seed=42):
     """ A function that fixes a random seed for reproducibility """
