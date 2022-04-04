@@ -2,6 +2,7 @@ import pickle as pickle
 import os
 import pandas as pd
 import torch
+import random
 from collections import defaultdict
 from transformers import Trainer
 from torch.utils.data import DataLoader
@@ -9,6 +10,7 @@ from torch.optim.lr_scheduler import LambdaLR
 import torch.nn.functional as F
 import sklearn
 from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_score
+from sklearn.model_selection import StratifiedShuffleSplit
 import numpy as np
 import re
 import wandb
@@ -88,18 +90,14 @@ def load_data(dataset_dir):
 
 # KBS) split함수
 def split_train_valid_stratified(dataset, split_ratio=0.2):
-    train_idx_list = [idx for idx in range(len(dataset['label']))]
+    train_idx_list = []
     valid_idx_list = []
-    indices_dict = defaultdict(list)
-    for idx, label in enumerate(dataset['label']):
-        indices_dict[label].append(idx)
-    
-    for key, idx_list in indices_dict.items():
-        valid_idx_list.extend(idx_list[:int(len(idx_list) * split_ratio)])
-    
-    train_idx_list = list(set(train_idx_list) - set(valid_idx_list))
-    train_dataset = dataset.iloc[train_idx_list]
-    valid_dataset = dataset.iloc[valid_idx_list]
+    split = StratifiedShuffleSplit(n_splits=1, test_size=split_ratio, random_state=42)
+    for train_idx, valid_idx in split.split(dataset, dataset['label']):
+        train_idx_list.append(train_idx)
+        valid_idx_list.append(valid_idx)
+    train_dataset = dataset.iloc[train_idx_list[0]]
+    valid_dataset = dataset.iloc[valid_idx_list[0]]
 
     return train_dataset, valid_dataset
 
@@ -175,14 +173,10 @@ def tokenized_dataset(dataset, tokenizer):
 class ImbalancedSamplerTrainer(Trainer):  
     def compute_loss(self, model, inputs, return_outputs=False):
         labels = inputs.get("labels")
-        one_hot_labels = F.one_hot(labels, num_classes=30)
         # forward pass
         outputs = model(**inputs)
         logits = outputs.get("logits")
-        with open('/opt/ml/code/level2-klue-level2-nlp-01/label_counters.pkl', 'rb') as f:
-            alpha = torch.tensor(pickle.load(f)).to(one_hot_labels.get_device())
-        alpha = one_hot_labels * alpha * 100.0
-        alpha = torch.sum(alpha, dim=1, keepdim=True)
+        alpha = 0.25
         gamma = 2.0
 
         log_prob = F.cross_entropy(logits, labels, reduction='none')

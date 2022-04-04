@@ -41,10 +41,10 @@ def train():
   # https://huggingface.co/transformers/main_classes/trainer.html#trainingarguments 참고해주세요.
   training_args = TrainingArguments(
     output_dir='/opt/ml/code/level2-klue-level2-nlp-01/results',          # output directory
-    save_total_limit=1,
-    num_train_epochs=13,              # total number of training epochs
-    learning_rate=1.827e-05,               # learning_rate
-    gradient_accumulation_steps=1,
+    save_total_limit=5,
+    num_train_epochs=3,              # total number of training epochs
+    learning_rate=3e-05,               # learning_rate
+    gradient_accumulation_steps=2,
     save_strategy='steps',
     per_device_train_batch_size=32,  # batch size per device during training
     per_device_eval_batch_size=32,   # batch size for evaluation
@@ -60,21 +60,21 @@ def train():
     greater_is_better=True
   )
 
-  # trainer = ImbalancedSamplerTrainer(
-  #   model=model,                         
-  #   args=training_args,                 
-  #   train_dataset=RE_train_dataset,         
-  #   eval_dataset=RE_dev_dataset,            
-  #   compute_metrics=compute_metrics      
-  # )
+  trainer = ImbalancedSamplerTrainer(
+    model=model,                         
+    args=training_args,                 
+    train_dataset=RE_train_dataset,         
+    eval_dataset=RE_dev_dataset,            
+    compute_metrics=compute_metrics      
+  )
 
-  trainer = Trainer(
-     model=model,                       
-     args=training_args,                
-     train_dataset=RE_train_dataset,       
-     eval_dataset=RE_dev_dataset,          
-     compute_metrics=compute_metrics      
-   )
+  # trainer = Trainer(
+  #    model=model,                       
+  #    args=training_args,                
+  #    train_dataset=RE_train_dataset,       
+  #    eval_dataset=RE_dev_dataset,          
+  #    compute_metrics=compute_metrics      
+  #  )
 
   # train model
   # best_hyperparameter = trainer.hyperparameter_search(
