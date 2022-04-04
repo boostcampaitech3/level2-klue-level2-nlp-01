@@ -81,7 +81,7 @@ def train(args):
   # tokenizer = ElectraTokenizer.from_pretrained(MODEL_NAME)
 
   # load dataset
-  train_dataset = load_data("~/dataset/train/alternate_train.csv")
+  train_dataset = load_data("~/dataset/train/alternate_train.csv", state='train')
   # train_dataset, dev_dataset = split_train_valid_stratified(train_dataset, split_ratio=0.2)
   # dev_dataset = load_data("../dataset/train/dev.csv") # validation용 데이터는 따로 만드셔야 합니다.
 
@@ -100,7 +100,7 @@ def train(args):
 
   print(device)
   
-  n_splits = args.num_splits #num of fold
+  n_splits = args.n_splits #num of fold
   
   startifiedFold = StratifiedKFold(
     n_splits=n_splits, shuffle=True, random_state=42
