@@ -54,7 +54,7 @@ def load_test_dataset(dataset_dir, tokenizer):
     test dataset을 불러온 후,
     tokenizing 합니다.
   """
-  test_dataset = load_data(dataset_dir)
+  test_dataset = load_data(dataset_dir, state='inference')
   test_label = list(map(int,test_dataset['label'].values))
   # tokenizing dataset
   tokenized_test = tokenized_dataset(test_dataset, tokenizer)
@@ -73,18 +73,21 @@ def main(args):
   pred = [0] * 7765
   prob = [[0] * 30 for _ in range(7765)]
   
-  for fold in range(1, num_of_fold+1):
+  for fold in range(num_of_fold):
       ## load test datset
     
     print(f"==========={fold} start!!==============")
     
     ## load my model
     MODEL_NAME = os.path.join(args.model_dir, f'{fold}')
-    model = AutoModelForSequenceClassification.from_pretrained(args.model_dir)
+    # MODEL_NAME = os.path.join(args.model_dir)
+    # model = AutoModelForSequenceClassification.from_pretrained(args.model_dir)
+    model = AutoModelForSequenceClassification.from_pretrained(MODEL_NAME)
     model.parameters
     model.to(device)
     
-    test_dataset_dir = "../dataset/test/alternate_test.csv"
+    # test_dataset_dir = "../dataset/test/alternate_test.csv"
+    test_dataset_dir = "/opt/ml/dataset/test/alternate_test.csv"
     test_id, test_dataset, test_label = load_test_dataset(test_dataset_dir, tokenizer)
     Re_test_dataset = RE_Dataset(test_dataset ,test_label)
 
@@ -114,7 +117,7 @@ if __name__ == '__main__':
   
   # model dir
   parser.add_argument('--model_dir', type=str, default="./best_model")
-  parser.add_argument('--num_of_fold)', type=int, default=5)
+  parser.add_argument('--num_of_fold', type=int, default=5)
   args = parser.parse_args()
   print(args)
   main(args)
