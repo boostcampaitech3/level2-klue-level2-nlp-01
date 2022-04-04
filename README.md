@@ -7,7 +7,9 @@ inference
 `python inference.py --num_of_fold 5`
 
 ### load_data.py
-load_data(data_dir, state = 'train')
-load_data(data_dir, state = 'inference')
+- state 추가
 
-state 추가
+
+load_data(data_dir, state = 'train')
+
+load_data(data_dir, state = 'inference')
