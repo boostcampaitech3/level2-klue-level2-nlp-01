@@ -21,15 +21,43 @@ class RE_Dataset(torch.utils.data.Dataset):
 
 def preprocessing_dataset(dataset):
   """ 처음 불러온 csv 파일을 원하는 형태의 DataFrame으로 변경 시켜줍니다."""
+  """ 현재 구현되어 있는 부분은 개체에 대한 단어만 데이터셋에 들어가게됨"""
   subject_entity = []
   object_entity = []
-  for i,j in zip(dataset['subject_entity'], dataset['object_entity']):
-    i = i[1:-1].split(',')[0].split(':')[1]
-    j = j[1:-1].split(',')[0].split(':')[1]
+  subject_span = []
+  object_span = []
+  for i,j in zip(dataset['subject_entity'], dataset['object_entity']): # word, start_idx, end_idx, type
+    sub_data = i[1:-1]
+    obj_data = j[1:-1]
 
-    subject_entity.append(i)
-    object_entity.append(j)
-  out_dataset = pd.DataFrame({'id':dataset['id'], 'sentence':dataset['sentence'],'subject_entity':subject_entity,'object_entity':object_entity,'label':dataset['label'],})
+    sub_data_parsed = re.findall(r"'[^\']+'", sub_data)
+    obj_data_parsed = re.findall(r"'[^\']+'", obj_data)
+
+    sub_word = sub_data_parsed[1][1:-1]
+    obj_word = obj_data_parsed[1][1:-1]
+
+    sub_data = i[1:-1].split(', ')
+    obj_data = j[1:-1].split(', ')
+    for d in sub_data:
+        if d.startswith("'start_idx'"):
+            sub_start_idx = d.split(': ')[1]
+        if d.startswith("'end_idx'"):
+            sub_end_idx = d.split(': ')[1]
+    sub_idx = (int(sub_start_idx), int(sub_end_idx))
+
+    for d in obj_data:
+        if d.startswith("'start_idx'"):
+            obj_start_idx = d.split(': ')[1]
+        if d.startswith("'end_idx'"):
+            obj_end_idx = d.split(': ')[1]
+    obj_idx = (int(obj_start_idx), int(obj_end_idx))
+
+    subject_entity.append(sub_word)
+    object_entity.append(obj_word)
+    subject_span.append(sub_idx)
+    object_span.append(obj_idx)
+  out_dataset = pd.DataFrame({'id':dataset['id'], 'sentence':dataset['sentence'],'subject_entity':subject_entity,'object_entity':object_entity,
+                              'subject_span':subject_span, 'object_span':object_span, 'label':dataset['label']})
   return out_dataset
 
 def load_data(dataset_dir):

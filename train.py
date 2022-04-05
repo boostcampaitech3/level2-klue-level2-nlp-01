@@ -192,15 +192,15 @@ def set_seed(seed_value=42):
 #         'accuracy': acc,
 #     }
 #
-# def label_to_num(label):
-#     num_label = []
-#     with open('dict_label_to_num.pkl', 'rb') as f:
-#       dict_label_to_num = pickle.load(f)
-#     for v in label:
-#       num_label.append(dict_label_to_num[v])
-#
-#     return num_label
-#
+def label_to_num(label):
+    num_label = []
+    with open('dict_label_to_num.pkl', 'rb') as f:
+      dict_label_to_num = pickle.load(f)
+    for v in label:
+      num_label.append(dict_label_to_num[v])
+
+    return num_label
+
 def train(model_args, train_args, data_args):
     utils.set_seeds(data_args.seed)
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
@@ -208,7 +208,7 @@ def train(model_args, train_args, data_args):
     # load model and tokenizer
     MODEL_NAME = model_args.MODEL_NAME
 
-    if model_args.architecture == TokenizerAndModelForKlueReTask:
+    if model_args.architecture == "TokenizerAndModelForKlueReTask":
         tokenizer, model = TokenizerAndModelForKlueReTask(MODEL_NAME)
     else:
         model = AutoModelForSequenceClassification(MODEL_NAME)
