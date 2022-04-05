@@ -6,7 +6,7 @@ from transformers.modeling_outputs import BaseModelOutputWithPoolingAndCrossAtte
 from transformers.models.roberta.modeling_roberta import RobertaPreTrainedModel, RobertaEncoder, RobertaClassificationHead, create_position_ids_from_input_ids
 from packaging import version
 
-MODEL_NAME = "klue/roberta-large"
+# MODEL_NAME = "klue/roberta-large"
 
 class RobertaEmbeddingwithEntity(nn.Module):
 
@@ -402,26 +402,24 @@ class RobertaNotUsingClsForKlueReTask(RobertaPreTrainedModel):
             x = self.out_proj(x)
             return x
 
-def TokenizerAndModelForKlueReTask():
-    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-    subj_entity_list = ['ORG', 'PER']
-    obj_entity_list = ['PER', 'ORG', 'DAT', 'LOC', 'POH', 'NOH']
-    additional_special_tokens = []
-    for sub_entity in subj_entity_list:
-        additional_special_tokens.append("[SUBJ:" + sub_entity + "]")
-        additional_special_tokens.append("[/SUBJ:" + sub_entity + "]")
-    for obj_entity in obj_entity_list:
-        additional_special_tokens.append("[OBJ:" + obj_entity + "]")
-        additional_special_tokens.append("[/OBJ:" + obj_entity + "]")
-    added_token_num = tokenizer.add_special_tokens({"additional_special_tokens":additional_special_tokens})
-    model_config = AutoConfig.from_pretrained(MODEL_NAME)
-    model_config.num_labels = 30
-    model = RobertaNotUsingClsForKlueReTask.from_pretrained(MODEL_NAME, config=model_config)
-    model.resize_token_embeddings(tokenizer.vocab_size + added_token_num)
-    print(model.parameters)
+class TokenizerAndModelForKlueReTask():
+    def __init__(self, MODEL_NAME):
+        tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+        self.subj_entity_list = ['ORG', 'PER']
+        self.obj_entity_list = ['PER', 'ORG', 'DAT', 'LOC', 'POH', 'NOH']
+        self.additional_special_tokens = []
 
-    return tokenizer, model
+        for sub_entity in self.subj_entity_list:
+            self.additional_special_tokens.append("[SUBJ:" + sub_entity + "]")
+            self.additional_special_tokens.append("[/SUBJ:" + sub_entity + "]")
+        for obj_entity in self.obj_entity_list:
+            self.additional_special_tokens.append("[OBJ:" + obj_entity + "]")
+            self.additional_special_tokens.append("[/OBJ:" + obj_entity + "]")
 
-if __name__ == '__main__':
-    tokenizer, model = TokenizerAndModelForKlueReTask()
-    print('All Right!')
+        added_token_num = tokenizer.add_special_tokens({"additional_special_tokens": self.additional_special_tokens})
+        model_config = AutoConfig.from_pretrained(MODEL_NAME)
+        model_config.num_labels = 30
+        model = RobertaNotUsingClsForKlueReTask.from_pretrained(MODEL_NAME, config=model_config)
+        model.resize_token_embeddings(tokenizer.vocab_size + added_token_num)
+
+        return tokenizer, model

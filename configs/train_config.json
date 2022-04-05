@@ -1,7 +1,7 @@
 {
   "ModelArguments" : {
-    "MODEL_NAME" : "google/mt5-large",
-    "architecture" : "MT5ForConditionalGeneration",
+    "MODEL_NAME" : "klue/roberta-large",
+    "architecture" : "TokenizerAndModelForKlueReTask",
     "best_model_dir" : "./best_model/mt5-large-sequence-generation-2"
   },
   "TrainingArguments" : {

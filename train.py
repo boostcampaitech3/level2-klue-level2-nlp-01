@@ -206,11 +206,28 @@ def train(model_args, train_args, data_args):
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
     # load model and tokenizer
-    # MODEL_NAME = "bert-base-uncased"
-#
-#     MODEL_NAME = model_args.MODEL_NAME
-#     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-#
+    MODEL_NAME = model_args.MODEL_NAME
+
+    if model_args.architecture == TokenizerAndModelForKlueReTask:
+        tokenizer, model = TokenizerAndModelForKlueReTask(MODEL_NAME)
+    else:
+        model = AutoModelForSequenceClassification(MODEL_NAME)
+        tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+
+    # train_dataset = load_data("./dataset/train/alternate_train copy.csv")
+    train_dataset = load_data(data_args.data)
+    train_dataset, dev_dataset = split_train_valid_stratified(train_dataset, split_ratio=0.2)
+
+    train_label = label_to_num(train_dataset['label'].values)
+    dev_label = label_to_num(dev_dataset['label'].values)
+
+    # tokenizing dataset
+    tokenized_train = tokenized_dataset(train_dataset, tokenizer)
+    tokenized_dev = tokenized_dataset(dev_dataset, tokenizer)
+
+    # make dataset for pytorch.
+    RE_train_dataset = RE_Dataset(tokenized_train, train_label)
+    RE_dev_dataset = RE_Dataset(tokenized_dev, dev_label)
 #     # load dataset
 #
 #     train_dataset = load_data(data_args.data)
