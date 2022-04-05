@@ -6,7 +6,7 @@ import pandas as pd
 import torch
 import torch.nn.functional as F
 
-import pickle as pickle
+import pickle
 import numpy as np
 import argparse
 from tqdm import tqdm
@@ -55,7 +55,9 @@ def load_test_dataset(dataset_dir, tokenizer):
     test dataset을 불러온 후,
     tokenizing 합니다.
   """
-  test_dataset = load_data(dataset_dir)
+  #test_dataset = load_data(dataset_dir)
+  with open('./test_dataframe.pkl', 'rb') as f:
+      test_dataset = pickle.load(f)
   test_label = list(map(int,test_dataset['label'].values))
   # tokenizing dataset
   tokenized_test = tokenized_dataset(test_dataset, tokenizer)

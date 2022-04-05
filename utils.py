@@ -1,11 +1,10 @@
-import pickle as pickle
+import pickle
 import os
 import pandas as pd
 import torch
 import random
 from collections import defaultdict
 from transformers import Trainer
-from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import LambdaLR
 import torch.nn.functional as F
 import sklearn
@@ -43,29 +42,23 @@ def preprocessing_dataset(dataset):
     sub_data = i[1:-1]
     obj_data = j[1:-1]
 
-    sub_tag = i.split(': ')[-1][1:-3]
-    obj_tag = j.split(': ')[-1][1:-3]
-
-    sub_data_parsed = re.findall(r"'[^\']+'", sub_data)
-    obj_data_parsed = re.findall(r"'[^\']+'", obj_data)
-
-    sub_word = sub_data_parsed[1][1:-1]
-    obj_word = obj_data_parsed[1][1:-1]
-
-    sub_data = i[1:-1].split(', ')
-    obj_data = j[1:-1].split(', ')
-    for d in sub_data:
-        if d.startswith("'start_idx'"):
-            sub_start_idx = d.split(': ')[1]
-        if d.startswith("'end_idx'"):
-            sub_end_idx = d.split(': ')[1]
+    sub_tag = sub_data[-5:-2]
+    obj_tag = obj_data[-5:-2]
+    
+    point1 = sub_data.find(", 'start_idx':")
+    point2 = sub_data.find(", 'end_idx':")
+    point3 = sub_data.find(", 'type':")
+    sub_word = sub_data[10:point1-1]
+    sub_start_idx = sub_data[point1+14:point2]
+    sub_end_idx = sub_data[point2+12:point3]
     sub_idx = (int(sub_start_idx), int(sub_end_idx))
-
-    for d in obj_data:
-        if d.startswith("'start_idx'"):
-            obj_start_idx = d.split(': ')[1]
-        if d.startswith("'end_idx'"):
-            obj_end_idx = d.split(': ')[1]
+    
+    point1 = obj_data.find(", 'start_idx':")
+    point2 = obj_data.find(", 'end_idx':")
+    point3 = obj_data.find(", 'type':")
+    obj_word = obj_data[10:point1-1]
+    obj_start_idx = obj_data[point1+14:point2]
+    obj_end_idx = obj_data[point2+12:point3]
     obj_idx = (int(obj_start_idx), int(obj_end_idx))
 
     subject_entity.append(sub_word)
