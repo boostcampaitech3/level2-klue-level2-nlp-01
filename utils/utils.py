@@ -22,9 +22,12 @@ class AttrDict(dict):
         super(AttrDict, self).__init__(*args, **kwargs)
         self.__dict__ = self
         
-def wandb_login(logging_args):
-    wandb.login()
-    wandb.init(**logging_args)
+def wandb_init(logging_args):
+    os.environ['WANDB_API_KEY'] = logging_args.WANDB_API_KEY
+    os.environ['WANDB_ENTITY'] = logging_args.WANDB_ENTITY
+    os.environ['WANDB_PROJECT'] = logging_args.WANDB_PROJECT
+    os.environ['WANDB_NAME'] = logging_args.WANDB_NAME
+    os.environ['WANDB_LOG_MODEL'] = logging_args.WANDB_LOG_MODEL
 
 def set_seeds(seed=42):
     """ A function that fixes a random seed for reproducibility """

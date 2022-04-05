@@ -1,4 +1,17 @@
-<<<<<<< HEAD
+import argparse
+import utils
+import wandb
+import sys
+from models import MT5SequenceClassification
+
+import sklearn
+import numpy as np
+from sklearn.metrics import accuracy_score
+from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments
+from transformers import MT5ForConditionalGeneration
+from load_data import *
+
+
 import pickle
 import os
 import pandas as pd
@@ -123,26 +136,7 @@ def set_seed(seed_value=42):
 #     f1 = metrics["eval_micro f1 score"]
 #     return f1
 
-if __name__ == '__main__':
-  os.environ['WANDB_API_KEY'] = 'f5b1f2d16ad90a4bfefca9e344309d152509ac3b'
-  os.environ['WANDB_ENTITY'] = 'plzanswer'
-  os.environ['WANDB_PROJECT'] = 'test-project'
-  os.environ['WANDB_NAME'] ="KBS-Test-Run"
-  os.environ['WANDB_LOG_MODEL'] = 'True'
-  train()
 
-# import argparse
-# import utils
-# import wandb
-# import sys
-# from models import MT5SequenceClassification
-#
-# import sklearn
-# import numpy as np
-# from sklearn.metrics import accuracy_score
-# from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments
-# from transformers import MT5ForConditionalGeneration
-# from load_data import *
 #
 #
 # PIPELINE_MAP = {
@@ -207,17 +201,18 @@ if __name__ == '__main__':
 #
 #     return num_label
 #
-# def train(model_args, train_args, data_args):
-#
-#
-#     # load model and tokenizer
-#     # MODEL_NAME = "bert-base-uncased"
+def train(model_args, train_args, data_args):
+    utils.set_seeds(data_args.seed)
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+
+    # load model and tokenizer
+    # MODEL_NAME = "bert-base-uncased"
 #
 #     MODEL_NAME = model_args.MODEL_NAME
 #     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
 #
 #     # load dataset
-#     utils.set_seeds(data_args.seed)
+#
 #     train_dataset = load_data(data_args.data)
 #     train_dataset, dev_dataset = split_train_valid_stratified(train_dataset, split_ratio=0.2)
 #
@@ -263,20 +258,20 @@ if __name__ == '__main__':
 #     # train model
 #     trainer.train()
 #     model.save_pretrained('./best_model')
-#
-# def main(args):
-#    model_args, train_args, data_args, logging_args = utils.get_arguments(args)
-#    utils.wandb_login(logging_args)
-#    train(model_args, train_args, data_args)
-#
-# if __name__ == '__main__':
-#     parser = argparse.ArgumentParser()
-#     parser.add_argument('--config', default='./configs/train_config.json', help='config.json file')
-#
-#     args = parser.parse_args()
-#     config = utils.read_json(args.config)
-#
-#     parser.set_defaults(**config)
-#     args = parser.parse_args()
-#
-#     main(args)
+
+def main(args):
+   model_args, train_args, data_args, logging_args = utils.get_arguments(args)
+   utils.wandb_init(logging_args)
+   train(model_args, train_args, data_args)
+
+if __name__ == '__main__':
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--config', default='./configs/train_config.json', help='config.json file')
+
+    args = parser.parse_args()
+    config = utils.read_json(args.config)
+
+    parser.set_defaults(**config)
+    args = parser.parse_args()
+
+    main(args)
