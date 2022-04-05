@@ -1,0 +1,38 @@
+{
+  "ModelArguments" : {
+    "MODEL_NAME" : "google/mt5-large",
+    "architecture" : "MT5ForConditionalGeneration",
+    "best_model_dir" : "./best_model/mt5-large-sequence-generation-batch-32-Adafactor-re-prefix"
+  },
+  "TrainingArguments" : {
+    "report_to": "wandb",
+    "output_dir": "./models/mt5-large-sequence-generation-batch-32-Adafactor-re-prefix",
+    "do_train": true,
+    "do_eval": true,
+    "do_predict": true,
+    "fp16": false,
+    "gradient_accumulation_steps" : 4,
+    "per_device_train_batch_size": 8,
+    "per_device_eval_batch_size": 8,
+    "num_train_epochs": 3,
+    "evaluation_strategy": "steps",
+    "eval_steps": 200,
+    "save_strategy": "steps",
+    "save_steps": 400,
+    "logging_strategy" : "steps",
+    "logging_steps": 10,
+    "save_total_limit": 5,
+    "load_best_model_at_end": true,
+    "metric_for_best_model": "loss",
+    "logging_dir": "./logs"
+  },
+  "DataArguments" : {
+    "seed" : 42,
+    "data" : "../dataset/train/alternate_train.csv"
+  },
+  "LoggingArguments" : {
+    "project" : "test-project",
+    "entity" : "plzanswer",
+    "name": "mt5-large-sequence-generation-batch-32-Adafactor-re-prefix"
+  }
+}

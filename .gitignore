@@ -5,3 +5,6 @@ best_model/
 results/
 wandb/
 prediction/
+.ipynb_checkpoints/
+.idea/
+logs/*
