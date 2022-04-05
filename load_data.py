@@ -84,7 +84,7 @@ def split_train_valid_stratified(dataset, split_ratio=0.2):
 
     return train_dataset, valid_dataset
 
-def tokenized_dataset(dataset, tokenizer):
+def tokenized_dataset_baseline(dataset, tokenizer):
   """ tokenizer에 따라 sentence를 tokenizing 합니다."""
   concat_entity = []
   for e01, e02 in zip(dataset['subject_entity'], dataset['object_entity']):
@@ -101,6 +101,73 @@ def tokenized_dataset(dataset, tokenizer):
       add_special_tokens=True,
       )
   return tokenized_sentences
+
+def tokenized_dataset_entity(dataset, tokenizer):
+    """ tokenizer에 따라 sentence를 tokenizing 합니다."""
+    original_sentence = list(dataset['sentence'])
+    subj_entity_list = ['ORG', 'PER']
+    obj_entity_list = ['PER', 'ORG', 'DAT', 'LOC', 'POH', 'NOH']
+    modified_sentence = []
+    s_subj_id = []
+    e_subj_id = []
+    s_obj_id = []
+    e_obj_id = []
+    added_vocab = tokenizer.get_added_vocab()
+    for idx, (subj, subj_tag, obj, obj_tag) in enumerate(
+            zip(dataset['subject_span'], dataset['subject_tag'], dataset['object_span'], dataset['object_tag'])):
+        subj_start_token = "[SUBJ:" + subj_tag + "]"
+        subj_end_token = "[/SUBJ:" + subj_tag + "]"
+        obj_start_token = "[OBJ:" + obj_tag + "]"
+        obj_end_token = "[/OBJ:" + obj_tag + "]"
+        s_subj_id.append(added_vocab[subj_start_token])
+        e_subj_id.append(added_vocab[subj_end_token])
+        s_obj_id.append(added_vocab[obj_start_token])
+        e_obj_id.append(added_vocab[obj_end_token])
+        if subj[0] < obj[0]:  # subject_entity가 먼저 출현
+            modified_str = [original_sentence[idx][:subj[0]],
+                            subj_start_token,
+                            original_sentence[idx][subj[0]:subj[1] + 1],
+                            subj_end_token,
+                            original_sentence[idx][subj[1] + 1:obj[0]],
+                            obj_start_token,
+                            original_sentence[idx][obj[0]:obj[1] + 1],
+                            obj_end_token,
+                            original_sentence[idx][obj[1] + 1:]]
+            modified_sentence.append(''.join(modified_str))
+        else:  # object_entity가 먼저 출현
+            modified_str = [original_sentence[idx][:obj[0]],
+                            obj_start_token,
+                            original_sentence[idx][obj[0]:obj[1] + 1],
+                            obj_end_token,
+                            original_sentence[idx][obj[1] + 1:subj[0]],
+                            subj_start_token,
+                            original_sentence[idx][subj[0]:subj[1] + 1],
+                            subj_end_token,
+                            original_sentence[idx][subj[1] + 1:]]
+
+            modified_sentence.append(''.join(modified_str))
+
+    tokenized_sentences = tokenizer(
+        modified_sentence,
+        return_tensors="pt",
+        padding=True,
+        truncation=True,
+        max_length=256,
+        add_special_tokens=True,
+    )  # [CLS]sentence..[SUBJ]subject[/SUBJ]..[OBJ]object[/OBJ]..[SEP][PAD][PAD][PAD]
+    # => input_ids, token_type_ids, attention_mask
+    # for entity_ids
+    entity_ids = torch.zeros_like(tokenized_sentences.input_ids)
+    for idx, input_id in enumerate(tokenized_sentences.input_ids):
+        subj_idx_tensor = ((input_id == s_subj_id[idx]) + (input_id == e_subj_id[idx])).nonzero(as_tuple=True)[0]
+        obj_idx_tensor = ((input_id == s_obj_id[idx]) + (input_id == e_obj_id[idx])).nonzero(as_tuple=True)[0]
+        for i in range(subj_idx_tensor[0], subj_idx_tensor[1] + 1):
+            entity_ids[idx][i] = (int)((s_subj_id[idx] - 32000) / 2) + 1
+        for i in range(obj_idx_tensor[0], obj_idx_tensor[1] + 1):
+            entity_ids[idx][i] = (int)((s_obj_id[idx] - 32000) / 2) + 1
+
+        tokenized_sentences['entity_ids'] = entity_ids
+    return tokenized_sentences
 
 
 class RE_Dataset_test_mt5(torch.utils.data.Dataset):

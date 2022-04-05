@@ -3,7 +3,6 @@ import random
 import torch
 import numpy as np
 import os
-import wandb
 
 def read_json(file):
     with open(file) as json_file:

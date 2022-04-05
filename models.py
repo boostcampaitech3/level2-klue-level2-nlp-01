@@ -6,8 +6,6 @@ from transformers.modeling_outputs import BaseModelOutputWithPoolingAndCrossAtte
 from transformers.models.roberta.modeling_roberta import RobertaPreTrainedModel, RobertaEncoder, RobertaClassificationHead, create_position_ids_from_input_ids
 from packaging import version
 
-# MODEL_NAME = "klue/roberta-large"
-
 class RobertaEmbeddingwithEntity(nn.Module):
 
     def __init__(self, config):
@@ -382,44 +380,67 @@ class RobertaNotUsingClsForKlueReTask(RobertaPreTrainedModel):
             attentions=outputs.attentions,
         )
     
-    class RobertaWithoutClsClassificationHead(nn.Module):
-        def __init__(self, config):
-            super().__init__()
-            self.dense = nn.Linear(2 * config.hidden_size, 2 * config.hidden_size)
-            classifier_dropout = (
-                config.classifier_dropout if config.classifier_dropout is not None else config.hidden_dropout_prob
-            )
-            self.dropout = nn.Dropout(classifier_dropout)
-            self.relu = nn.ReLU()
-            self.out_proj = nn.Linear(2 * config.hidden_size, config.num_labels)
+class RobertaWithoutClsClassificationHead(nn.Module):
+    def __init__(self, config):
+        super().__init__()
+        self.dense = nn.Linear(2 * config.hidden_size, 2 * config.hidden_size)
+        classifier_dropout = (
+            config.classifier_dropout if config.classifier_dropout is not None else config.hidden_dropout_prob
+        )
+        self.dropout = nn.Dropout(classifier_dropout)
+        self.relu = nn.ReLU()
+        self.out_proj = nn.Linear(2 * config.hidden_size, config.num_labels)
 
-        def forward(self, features, subj_idx, obj_idx, **kwargs):
-            x = torch.cat([features[:, subj_idx[0], :], features[:, obj_idx[0], :]], dim=1)  # take [SUBJ][OBJ] token
-            x = self.dropout(x)
-            x = self.dense(x)
-            x = self.relu(x)
-            x = self.dropout(x)
-            x = self.out_proj(x)
-            return x
+    def forward(self, features, subj_idx, obj_idx, **kwargs):
+        x = torch.cat([features[:, subj_idx[0], :], features[:, obj_idx[0], :]], dim=1)  # take [SUBJ][OBJ] token
+        x = self.dropout(x)
+        x = self.dense(x)
+        x = self.relu(x)
+        x = self.dropout(x)
+        x = self.out_proj(x)
+        return x
 
-class TokenizerAndModelForKlueReTask():
-    def __init__(self, MODEL_NAME):
-        tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-        self.subj_entity_list = ['ORG', 'PER']
-        self.obj_entity_list = ['PER', 'ORG', 'DAT', 'LOC', 'POH', 'NOH']
-        self.additional_special_tokens = []
+def TokenizerAndModelForKlueReTask(MODEL_NAME):
+    tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+    subj_entity_list = ['ORG', 'PER']
+    obj_entity_list = ['PER', 'ORG', 'DAT', 'LOC', 'POH', 'NOH']
+    additional_special_tokens = []
 
-        for sub_entity in self.subj_entity_list:
-            self.additional_special_tokens.append("[SUBJ:" + sub_entity + "]")
-            self.additional_special_tokens.append("[/SUBJ:" + sub_entity + "]")
-        for obj_entity in self.obj_entity_list:
-            self.additional_special_tokens.append("[OBJ:" + obj_entity + "]")
-            self.additional_special_tokens.append("[/OBJ:" + obj_entity + "]")
+    for sub_entity in subj_entity_list:
+        additional_special_tokens.append("[SUBJ:" + sub_entity + "]")
+        additional_special_tokens.append("[/SUBJ:" + sub_entity + "]")
+    for obj_entity in obj_entity_list:
+        additional_special_tokens.append("[OBJ:" + obj_entity + "]")
+        additional_special_tokens.append("[/OBJ:" + obj_entity + "]")
 
-        added_token_num = tokenizer.add_special_tokens({"additional_special_tokens": self.additional_special_tokens})
-        model_config = AutoConfig.from_pretrained(MODEL_NAME)
-        model_config.num_labels = 30
-        model = RobertaNotUsingClsForKlueReTask.from_pretrained(MODEL_NAME, config=model_config)
-        model.resize_token_embeddings(tokenizer.vocab_size + added_token_num)
+    added_token_num = tokenizer.add_special_tokens({"additional_special_tokens": additional_special_tokens})
+    model_config = AutoConfig.from_pretrained(MODEL_NAME)
+    model_config.num_labels = 30
+    model = RobertaNotUsingClsForKlueReTask.from_pretrained(MODEL_NAME, config=model_config)
+    model.resize_token_embeddings(tokenizer.vocab_size + added_token_num)
 
-        return tokenizer, model
+    return tokenizer, model
+
+
+# class ModelTokenizerInitializer():
+#     def __int__(self, ,MODEL_NAME, ):
+#
+#     tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+#     subj_entity_list = ['ORG', 'PER']
+#     obj_entity_list = ['PER', 'ORG', 'DAT', 'LOC', 'POH', 'NOH']
+#     additional_special_tokens = []
+#
+#     for sub_entity in subj_entity_list:
+#         additional_special_tokens.append("[SUBJ:" + sub_entity + "]")
+#         additional_special_tokens.append("[/SUBJ:" + sub_entity + "]")
+#     for obj_entity in obj_entity_list:
+#         additional_special_tokens.append("[OBJ:" + obj_entity + "]")
+#         additional_special_tokens.append("[/OBJ:" + obj_entity + "]")
+#
+#     added_token_num = tokenizer.add_special_tokens({"additional_special_tokens": additional_special_tokens})
+#     model_config = AutoConfig.from_pretrained(MODEL_NAME)
+#     model_config.num_labels = 30
+#     model = RobertaNotUsingClsForKlueReTask.from_pretrained(MODEL_NAME, config=model_config)
+#     model.resize_token_embeddings(tokenizer.vocab_size + added_token_num)
+#
+#     return tokenizer, model

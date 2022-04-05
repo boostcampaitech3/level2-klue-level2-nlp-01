@@ -10,7 +10,9 @@ from sklearn.metrics import accuracy_score
 from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments
 from transformers import MT5ForConditionalGeneration
 from load_data import *
-
+import load_data
+from models import *
+import models
 
 import pickle
 import os
@@ -22,7 +24,7 @@ from sklearn.metrics import accuracy_score, recall_score, precision_score, f1_sc
 from transformers import AutoTokenizer, AutoConfig, AutoModelForSequenceClassification, Trainer, TrainingArguments, RobertaConfig, RobertaTokenizer, RobertaForSequenceClassification, BertTokenizer
 from utils import *
 from ray import tune
-from models import *
+
 import wandb
 import copy
 import random
@@ -207,9 +209,10 @@ def train(model_args, train_args, data_args):
 
     # load model and tokenizer
     MODEL_NAME = model_args.MODEL_NAME
+    ARCHITECTURE = model_args.architecture
 
-    if model_args.architecture == "TokenizerAndModelForKlueReTask":
-        tokenizer, model = TokenizerAndModelForKlueReTask(MODEL_NAME)
+    if ARCHITECTURE == "TokenizerAndModelForKlueReTask":
+        tokenizer, model = TokenizerAndModelForKlueReTask(MODEL_NAME, ARCHITECTURE)
     else:
         model = AutoModelForSequenceClassification(MODEL_NAME)
         tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
@@ -222,8 +225,8 @@ def train(model_args, train_args, data_args):
     dev_label = label_to_num(dev_dataset['label'].values)
 
     # tokenizing dataset
-    tokenized_train = tokenized_dataset(train_dataset, tokenizer)
-    tokenized_dev = tokenized_dataset(dev_dataset, tokenizer)
+    tokenized_train = getattr(load_data, data_args.tokenized_dataset)(train_dataset, tokenizer)
+    tokenized_dev = getattr(load_data, data_args.tokenized_dataset)(dev_dataset, tokenizer)
 
     # make dataset for pytorch.
     RE_train_dataset = RE_Dataset(tokenized_train, train_label)

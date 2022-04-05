@@ -32,13 +32,14 @@
   },
   "DataArguments" : {
     "seed" : 42,
-    "data" : "../dataset/train/alternate_train.csv"
+    "data" : "../dataset/train/alternate_train.csv",
+    "tokenized_dataset" : "tokenized_dataset_entity"
   },
   "LoggingArguments" : {
     "WANDB_API_KEY" : "9de863635bf84af4d97d5df0e4577edd8e451f02",
     "WANDB_ENTITY" : "plzanswer",
     "WANDB_PROJECT" : "test-project",
-    "WANDB_NAME" : "mt5-large-sequence-generation-batch-32-test",
+    "WANDB_NAME" : "klue/roberta-large-dev-test",
     "WANDB_LOG_MODEL" : true
   }
 }
