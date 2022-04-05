@@ -5,3 +5,6 @@ best_model/
 results/
 wandb/
 prediction/
+train_dataframe.pkl
+test_dataframe.pkl
+augmented.pkl
