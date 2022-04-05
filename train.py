@@ -206,13 +206,18 @@ def label_to_num(label):
 def train(model_args, train_args, data_args):
     utils.set_seeds(data_args.seed)
     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+    print(device)
 
     # load model and tokenizer
     MODEL_NAME = model_args.MODEL_NAME
     ARCHITECTURE = model_args.architecture
 
-    if ARCHITECTURE == "TokenizerAndModelForKlueReTask":
-        tokenizer, model = TokenizerAndModelForKlueReTask(MODEL_NAME, ARCHITECTURE)
+    if hasattr(sys.modules[__name__], ARCHITECTURE):
+        if ARCHITECTURE == "TokenizerAndModelForKlueReTask":
+            tokenizer, model = getattr(sys.modules[__name__], ARCHITECTURE)(MODEL_NAME)
+        else:
+            model = getattr(sys.modules[__name__], ARCHITECTURE)(MODEL_NAME)
+            tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
     else:
         model = AutoModelForSequenceClassification(MODEL_NAME)
         tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
@@ -231,34 +236,10 @@ def train(model_args, train_args, data_args):
     # make dataset for pytorch.
     RE_train_dataset = RE_Dataset(tokenized_train, train_label)
     RE_dev_dataset = RE_Dataset(tokenized_dev, dev_label)
-#     # load dataset
-#
-#     train_dataset = load_data(data_args.data)
-#     train_dataset, dev_dataset = split_train_valid_stratified(train_dataset, split_ratio=0.2)
-#
-#     train_label = label_to_num(train_dataset['label'].values)
-#     dev_label = label_to_num(dev_dataset['label'].values)
-#
-#     # tokenizing dataset
-#     tokenized_train = tokenized_dataset(train_dataset, tokenizer)
-#     tokenized_dev = tokenized_dataset(dev_dataset, tokenizer)
-#
-#     # make dataset for pytorch.
-#     RE_train_dataset = RE_Dataset(tokenized_train, train_label)
-#     RE_dev_dataset = RE_Dataset(tokenized_dev, dev_label)
-#
-#     device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-#
-#     print(device)
-#     # setting model hyperparameter
-#     model_config = AutoConfig.from_pretrained(MODEL_NAME)
-#     model_config.num_labels = 30
-#
-#     model_architecture = getattr(sys.modules[__name__], "MT5SequenceClassification")
-#     model =  model_architecture.from_pretrained(MODEL_NAME, config=model_config)
-#     print(model.config)
-#     model.parameters
-#     model.to(device)
+
+    print(device)
+    print(model.config)
+    model.to(device)
 #
 #     # train_args.output_dir = os.path.join(train_args.output_dir, train_args.run_name)
 #     print(train_args.output_dir)
