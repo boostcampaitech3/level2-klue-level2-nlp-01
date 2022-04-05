@@ -46,6 +46,6 @@
     "WANDB_ENTITY" : "plzanswer",
     "WANDB_PROJECT" : "test-project",
     "WANDB_NAME" : "klue/roberta-large-dev-test",
-    "WANDB_LOG_MODEL" : true
+    "WANDB_LOG_MODEL" : "True"
   }
 }
