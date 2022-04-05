@@ -138,62 +138,55 @@ def set_seed(seed_value=42):
 #     f1 = metrics["eval_micro f1 score"]
 #     return f1
 
+def klue_re_micro_f1(preds, labels):
+    """KLUE-RE micro f1 (except no_relation)"""
+    label_list = ['no_relation', 'org:top_members/employees', 'org:members',
+        'org:product', 'per:title', 'org:alternate_names',
+        'per:employee_of', 'org:place_of_headquarters', 'per:product',
+        'org:number_of_employees/members', 'per:children',
+        'per:place_of_residence', 'per:alternate_names',
+        'per:other_family', 'per:colleagues', 'per:origin', 'per:siblings',
+        'per:spouse', 'org:founded', 'org:political/religious_affiliation',
+        'org:member_of', 'per:parents', 'org:dissolved',
+        'per:schools_attended', 'per:date_of_death', 'per:date_of_birth',
+        'per:place_of_birth', 'per:place_of_death', 'org:founded_by',
+        'per:religion']
+    no_relation_label_idx = label_list.index("no_relation")
+    label_indices = list(range(len(label_list)))
+    label_indices.remove(no_relation_label_idx)
+    return sklearn.metrics.f1_score(labels, preds, average="micro", labels=label_indices) * 100.0
 
-#
-#
-# PIPELINE_MAP = {
-#     "google/mt5-large" : 'MT5SequenceClassification',
-# }
-#
-# def klue_re_micro_f1(preds, labels):
-#     """KLUE-RE micro f1 (except no_relation)"""
-#     label_list = ['no_relation', 'org:top_members/employees', 'org:members',
-#         'org:product', 'per:title', 'org:alternate_names',
-#         'per:employee_of', 'org:place_of_headquarters', 'per:product',
-#         'org:number_of_employees/members', 'per:children',
-#         'per:place_of_residence', 'per:alternate_names',
-#         'per:other_family', 'per:colleagues', 'per:origin', 'per:siblings',
-#         'per:spouse', 'org:founded', 'org:political/religious_affiliation',
-#         'org:member_of', 'per:parents', 'org:dissolved',
-#         'per:schools_attended', 'per:date_of_death', 'per:date_of_birth',
-#         'per:place_of_birth', 'per:place_of_death', 'org:founded_by',
-#         'per:religion']
-#     no_relation_label_idx = label_list.index("no_relation")
-#     label_indices = list(range(len(label_list)))
-#     label_indices.remove(no_relation_label_idx)
-#     return sklearn.metrics.f1_score(labels, preds, average="micro", labels=label_indices) * 100.0
-#
-# def klue_re_auprc(probs, labels):
-#     """KLUE-RE AUPRC (with no_relation)"""
-#     labels = np.eye(30)[labels]
-#
-#     score = np.zeros((30,))
-#     for c in range(30):
-#         targets_c = labels.take([c], axis=1).ravel()
-#         preds_c = probs.take([c], axis=1).ravel()
-#         precision, recall, _ = sklearn.metrics.precision_recall_curve(targets_c, preds_c)
-#         score[c] = sklearn.metrics.auc(recall, precision)
-#     return np.average(score) * 100.0
-#
-# def compute_metrics(pred):
-#     """ validation을 위한 metrics function """
-#     labels = pred.label_ids
-#     preds = pred.predictions.argmax(-1)
-#     probs = pred.predictions
-#
-#     # calculate accuracy using sklearn's function
-#     f1 = klue_re_micro_f1(preds, labels)
-#     auprc = klue_re_auprc(probs, labels)
-#     acc = accuracy_score(labels, preds) # 리더보드 평가에는 포함되지 않습니다.
-#
-#     wandb.log({"micro f1": f1, "auprc": auprc, "acc": acc})
-#
-#     return {
-#         'micro f1 score': f1,
-#         'auprc' : auprc,
-#         'accuracy': acc,
-#     }
-#
+def klue_re_auprc(probs, labels):
+    """KLUE-RE AUPRC (with no_relation)"""
+    labels = np.eye(30)[labels]
+
+    score = np.zeros((30,))
+    for c in range(30):
+        targets_c = labels.take([c], axis=1).ravel()
+        preds_c = probs.take([c], axis=1).ravel()
+        precision, recall, _ = sklearn.metrics.precision_recall_curve(targets_c, preds_c)
+        score[c] = sklearn.metrics.auc(recall, precision)
+    return np.average(score) * 100.0
+
+def compute_metrics(pred):
+    """ validation을 위한 metrics function """
+    labels = pred.label_ids
+    preds = pred.predictions.argmax(-1)
+    probs = pred.predictions
+
+    # calculate accuracy using sklearn's function
+    f1 = klue_re_micro_f1(preds, labels)
+    auprc = klue_re_auprc(probs, labels)
+    acc = accuracy_score(labels, preds) # 리더보드 평가에는 포함되지 않습니다.
+
+    wandb.log({"micro f1": f1, "auprc": auprc, "acc": acc})
+
+    return {
+        'micro f1 score': f1,
+        'auprc' : auprc,
+        'accuracy': acc,
+    }
+
 def label_to_num(label):
     num_label = []
     with open('dict_label_to_num.pkl', 'rb') as f:
@@ -240,25 +233,28 @@ def train(model_args, train_args, data_args):
     print(device)
     print(model.config)
     model.to(device)
-#
-#     # train_args.output_dir = os.path.join(train_args.output_dir, train_args.run_name)
-#     print(train_args.output_dir)
-#     # 사용한 option 외에도 다양한 option들이 있습니다.
-#     # https://huggingface.co/transformers/main_classes/trainer.html#trainingarguments 참고해주세요.
-#     training_args = TrainingArguments(
-#         **train_args
-#     )
-#     trainer = Trainer(
-#         model=model,                                     # the instantiated 🤗 Transformers model to be trained
-#         args=training_args,                           # training arguments, defined above
-#         train_dataset=RE_train_dataset,             # training dataset
-#         eval_dataset=RE_dev_dataset,                   # evaluation dataset
-#         compute_metrics=compute_metrics             # define metrics function
-#     )
-#
-#     # train model
-#     trainer.train()
-#     model.save_pretrained('./best_model')
+
+    train_args.output_dir = os.path.join(train_args.output_dir, train_args.run_name)
+    os.makedirs(train_args.output_dir, exist_ok=True)
+    print(f'model will be save at : {train_args.output_dir}')
+
+    training_args = TrainingArguments(
+        **train_args
+    )
+    trainer = Trainer(
+        model=model,                                     # the instantiated 🤗 Transformers model to be trained
+        args=training_args,                           # training arguments, defined above
+        train_dataset=RE_train_dataset,             # training dataset
+        eval_dataset=RE_dev_dataset,                   # evaluation dataset
+        compute_metrics=compute_metrics             # define metrics function
+    )
+
+    # train model
+    trainer.train()
+    best_path = os.path.join(model_args.best_model_dir, train_args.run_name)
+    os.makedirs(best_path, exist_ok=True)
+    print(f'best model will be save at : {best_path}')
+    model.save_pretrained(best_path)
 
 def main(args):
    model_args, train_args, data_args, logging_args = utils.get_arguments(args)

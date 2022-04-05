@@ -2,11 +2,11 @@
   "ModelArguments" : {
     "MODEL_NAME" : "klue/roberta-large",
     "architecture" : "TokenizerAndModelForKlueReTask",
-    "best_model_dir" : "./best_model/mt5-large-sequence-generation-2"
+    "best_model_dir" : "./best_model"
   },
   "TrainingArguments" : {
     "report_to": "wandb",
-    "output_dir": "./models/mt5-large-sequence-generation-2",
+    "output_dir": "./models",
     "learning_rate": 3e-4,
     "do_train": true,
     "do_eval": true,
@@ -14,9 +14,9 @@
     "fp16": false,
     "weight_decay": 0.01,
     "warmup_steps": 200,
-    "gradient_accumulation_steps" : 8,
-    "per_device_train_batch_size": 4,
-    "per_device_eval_batch_size": 4,
+    "gradient_accumulation_steps" : 32,
+    "per_device_train_batch_size":32,
+    "per_device_eval_batch_size":32,
     "num_train_epochs": 10,
     "evaluation_strategy": "steps",
     "eval_steps": 500,
@@ -26,7 +26,7 @@
     "logging_steps": 500,
     "save_total_limit": 5,
     "load_best_model_at_end": true,
-    "metric_for_best_model": "loss",
+    "metric_for_best_model": "micro f1 score",
     "logging_dir": "./logs",
     "lr_scheduler_type": "linear"
   },
