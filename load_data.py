@@ -3,6 +3,7 @@ import os
 import pandas as pd
 import torch
 import random
+import pickle
 
 class RE_Dataset(torch.utils.data.Dataset):
   """ Dataset 구성을 위한 class."""
@@ -34,21 +35,51 @@ def preprocessing_dataset(dataset):
   out_dataset = pd.DataFrame({'id':dataset['id'], 'sentence':dataset['sentence'],'subject_entity':subject_entity,'object_entity':object_entity,'label':dataset['label'],})
   return out_dataset
 
-def load_data(dataset_dir):
-  """ csv 파일을 경로에 맡게 불러 옵니다. """
-  pd_dataset = pd.read_csv(dataset_dir)
-  dataset = preprocessing_dataset(pd_dataset)
+def custom_preprocessing_dataset(dataset):
+  subject_entity = []
+  object_entity = []
+  for sbj, obj in zip(dataset['subject_entity'], dataset['object_entity']):
+    sbj_start_idx = sbj.find("'word':") + 8
+    sbj_end_idx = sbj.find("'start_idx':") - 2
+    obj_start_idx = obj.find('word') + 8
+    obj_end_idx = obj.find('start_idx') - 2
+    sbj_word = sbj[sbj_start_idx : sbj_end_idx]
+    obj_word = obj[obj_start_idx : obj_end_idx]
+    subject_entity.append(sbj_word)
+    object_entity.append(obj_word)
+  out_dataset = pd.DataFrame({'id':dataset['id'], 'sentence':dataset['sentence'],'subject_entity':subject_entity,'object_entity':object_entity,'label':dataset['label']})
+  return out_dataset
 
+def custom_preprocessing_dataset2(dataset):
+  return pd.DataFrame({'id': dataset['id'], 'sentence': dataset['sentence'], 'subject_entity': dataset['subject_entity'], 'object_entity': dataset['object_entity'],'label': dataset['label']})
+
+def load_data(dataset_dir, file_type):
+  """ csv 파일을 경로에 맡게 불러 옵니다. """
+  if file_type == 'csv':
+    pd_dataset = pd.read_csv(dataset_dir).drop_duplicates(['sentence', 'subject_entity', 'object_entity', 'label'])
+    # dataset = preprocessing_dataset(pd_dataset)
+    dataset = custom_preprocessing_dataset(pd_dataset)
+  elif file_type == 'pkl':
+    with open(dataset_dir, "rb") as f:
+      pd_dataset = pickle.load(f)
+      dataset = custom_preprocessing_dataset2(pd_dataset)
+  
   return dataset
 
-def load_data_and_split(dataset_dir, val_ratio):
-  pd_dataset = pd.read_csv(dataset_dir)
-  dataset = preprocessing_dataset(pd_dataset)
+def load_data_and_split(dataset_dir, val_ratio, file_type):
+  if file_type == 'csv':
+    pd_dataset = pd.read_csv(dataset_dir).drop_duplicates(['sentence', 'subject_entity', 'object_entity', 'label'])
+    # dataset = preprocessing_dataset(pd_dataset)
+    dataset = custom_preprocessing_dataset(pd_dataset)
+  elif file_type == 'pkl':
+    with open(dataset_dir, "rb") as f:
+      pd_dataset = pickle.load(f)
+      dataset = custom_preprocessing_dataset2(pd_dataset)
+
   labels = list(dataset['label'].unique())
 
   train_ids = []
   val_ids = []
-
   for label in labels:
     pd_label = dataset.loc[dataset['label']==label]
     length = len(pd_label)
