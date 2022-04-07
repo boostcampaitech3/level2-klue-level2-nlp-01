@@ -15,7 +15,8 @@ def get_arguments(args):
     data_args = AttrDict(args.DataArguments)
     logging_args = AttrDict(args.LoggingArguments)
     hyper_args = AttrDict(args.HyperParameterArguments)
-    return model_args, training_args, data_args, logging_args, hyper_args
+    kfold_args = AttrDict(args.StratifiedKfoldArguments)
+    return model_args, training_args, data_args, logging_args, hyper_args, kfold_args
 
 class AttrDict(dict):
     def __init__(self, *args, **kwargs):

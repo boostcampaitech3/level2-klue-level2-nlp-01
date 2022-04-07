@@ -1,7 +1,7 @@
 {
   "ModelArguments" : {
     "MODEL_NAME" : "klue/roberta-large",
-    "architecture" : "TokenizerAndModelForKlueReTask",
+    "architecture" : "RobertaForSequenceClassification",
     "best_model_dir" : "./best_model"
   },
   "TrainingArguments" : {
@@ -37,19 +37,15 @@
   },
   "HyperParameterArguments" : {
     "hps_search" : true,
-    "learning_rate" : "tune.loguniform(1e-5, 5e-5)",
-    "num_train_epochs" : "tune.choice(range(3, 10))",
+    "learning_rate" : "tune.loguniform(1e-5, 3e-5)",
     "per_device_train_batch_size" : "tune.choice([16, 32])",
-    "gradient_accumulation_steps" : "tune.choice(range(1, 2))"
-  },
-  "StratifiedKfoldArguments" : {
-    "fold" : 5
+    "gradient_accumulation_steps" : "tune.choice(range(2))"
   },
   "LoggingArguments" : {
     "WANDB_API_KEY" : "9de863635bf84af4d97d5df0e4577edd8e451f02",
     "WANDB_ENTITY" : "plzanswer",
     "WANDB_PROJECT" : "test-project",
-    "WANDB_NAME" : "klue/roberta-large-dev-test",
+    "WANDB_NAME" : "phil-klue-roberta-large-new-tag",
     "WANDB_LOG_MODEL" : "True"
   }
 }

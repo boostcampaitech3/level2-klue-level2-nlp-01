@@ -1,7 +1,7 @@
 {
   "ModelArguments" : {
     "MODEL_NAME" : "klue/roberta-large",
-    "architecture" : "TokenizerAndModelForKlueReTask",
+    "architecture" : "RobertaForSequenceClassification",
     "best_model_dir" : "./best_model"
   },
   "TrainingArguments" : {
@@ -11,20 +11,20 @@
     "do_train": true,
     "do_eval": true,
     "do_predict": true,
-    "fp16": false,
+    "fp16": true,
     "weight_decay": 0.01,
     "warmup_steps": 200,
     "gradient_accumulation_steps" : 2,
     "per_device_train_batch_size": 32,
     "per_device_eval_batch_size": 32,
-    "num_train_epochs": 5,
+    "num_train_epochs": 10,
     "evaluation_strategy": "steps",
     "eval_steps": 100,
     "save_strategy": "steps",
     "save_steps": 100,
     "logging_strategy" : "steps",
     "logging_steps": 10,
-    "save_total_limit": 5,
+    "save_total_limit": 3,
     "load_best_model_at_end": true,
     "metric_for_best_model": "eval_micro f1 score",
     "logging_dir": "./logs",
@@ -32,15 +32,14 @@
   },
   "DataArguments" : {
     "seed" : 42,
-    "data" : "../dataset/train/alternate_train.csv",
-    "tokenized_dataset" : "tokenized_dataset_entity"
+    "data" : "../dataset/train/train_data.pkl",
+    "tokenized_dataset" : "tokenized_dataset_custom_tagging"
   },
   "HyperParameterArguments" : {
-    "hps_search" : true,
-    "learning_rate" : "tune.loguniform(1e-5, 5e-5)",
-    "num_train_epochs" : "tune.choice(range(3, 10))",
+    "hps_search" : false,
+    "learning_rate" : "tune.loguniform(1e-5, 3e-5)",
     "per_device_train_batch_size" : "tune.choice([16, 32])",
-    "gradient_accumulation_steps" : "tune.choice(range(1, 2))"
+    "gradient_accumulation_steps" : "tune.choice(range(2))"
   },
   "StratifiedKfoldArguments" : {
     "fold" : 5
@@ -49,7 +48,7 @@
     "WANDB_API_KEY" : "9de863635bf84af4d97d5df0e4577edd8e451f02",
     "WANDB_ENTITY" : "plzanswer",
     "WANDB_PROJECT" : "test-project",
-    "WANDB_NAME" : "klue/roberta-large-dev-test",
+    "WANDB_NAME" : "klue-roberta-large-new-tag-5-fold-augmented",
     "WANDB_LOG_MODEL" : "True"
   }
 }

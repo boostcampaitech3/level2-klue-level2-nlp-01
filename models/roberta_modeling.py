@@ -315,7 +315,7 @@ class RobertaNotUsingClsForKlueReTask(RobertaPreTrainedModel):
         self.config = config
 
         self.roberta = RobertaModelWithEntityEmbeddings(config, add_pooling_layer=False)
-        self.classifier = self.RobertaWithoutClsClassificationHead(config)
+        self.classifier = RobertaWithoutClsClassificationHead(config)
 
         self.init_weights()
 
@@ -420,6 +420,7 @@ def TokenizerAndModelForKlueReTask(MODEL_NAME):
     for obj_entity in obj_entity_list:
         additional_special_tokens.append("[OBJ:" + obj_entity + "]")
         additional_special_tokens.append("[/OBJ:" + obj_entity + "]")
+    tokenizer.add_special_tokens({"additional_special_tokens": additional_special_tokens})
 
     added_token_num = tokenizer.add_special_tokens({"additional_special_tokens": additional_special_tokens})
     model_config = AutoConfig.from_pretrained(MODEL_NAME)
@@ -428,5 +429,7 @@ def TokenizerAndModelForKlueReTask(MODEL_NAME):
     model.resize_token_embeddings(tokenizer.vocab_size + added_token_num)
 
     return tokenizer, model
+
+
 
 

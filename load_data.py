@@ -4,6 +4,18 @@ import pandas as pd
 import torch
 from collections import defaultdict
 import random
+import re
+import numpy as np
+import pickle
+
+# __all__ = ['RE_Dataset',
+#            'preprocessing_dataset',
+#            'load_data',
+#            'split_train_valid_stratified',
+#            'tokenized_dataset_baseline',
+#            'tokenized_dataset_entity',
+#            'RE_Dataset_test_mt5',
+#            'RE_Dataset_mt5']
 
 class RE_Dataset(torch.utils.data.Dataset):
   """ Dataset 구성을 위한 class."""
@@ -26,9 +38,14 @@ def preprocessing_dataset(dataset):
   object_entity = []
   subject_span = []
   object_span = []
+  subject_tag = []
+  object_tag = []
   for i,j in zip(dataset['subject_entity'], dataset['object_entity']): # word, start_idx, end_idx, type
     sub_data = i[1:-1]
     obj_data = j[1:-1]
+
+    sub_tag = eval(i)['type']
+    obj_tag = eval(j)['type']
 
     sub_data_parsed = re.findall(r"'[^\']+'", sub_data)
     obj_data_parsed = re.findall(r"'[^\']+'", obj_data)
@@ -56,19 +73,26 @@ def preprocessing_dataset(dataset):
     object_entity.append(obj_word)
     subject_span.append(sub_idx)
     object_span.append(obj_idx)
+    subject_tag.append(sub_tag)
+    object_tag.append(obj_tag)
+
   out_dataset = pd.DataFrame({'id':dataset['id'], 'sentence':dataset['sentence'],'subject_entity':subject_entity,'object_entity':object_entity,
-                              'subject_span':subject_span, 'object_span':object_span, 'label':dataset['label']})
+                              'subject_span':subject_span, 'object_span':object_span, 'label':dataset['label'],
+                              'subject_tag':subject_tag, 'object_tag':object_tag})
   return out_dataset
 
 def load_data(dataset_dir):
-  """ csv 파일을 경로에 맡게 불러 옵니다. """
-  pd_dataset = pd.read_csv(dataset_dir, sep='\t')
-  dataset = preprocessing_dataset(pd_dataset)
-  
-  return dataset
+    """ csv 파일을 경로에 맡게 불러 옵니다. """
+    if re.search('.csv$', dataset_dir):
+        pd_dataset = pd.read_csv(dataset_dir, sep='\t')
+        dataset = preprocessing_dataset(pd_dataset)
+    elif re.search('.pkl$', dataset_dir):
+        with open(dataset_dir, 'rb') as f:
+            dataset = pickle.load(f)
+    return dataset
 
 # KBS) split함수
-def split_train_valid_stratified(dataset, split_ratio=0.2):
+def split_train_valid_stratified(dataset, split_ratio=0.2, shuffle = False):
     train_idx_list = [idx for idx in range(len(dataset['label']))]
     valid_idx_list = []
     indices_dict = defaultdict(list)
@@ -81,6 +105,11 @@ def split_train_valid_stratified(dataset, split_ratio=0.2):
     train_idx_list = list(set(train_idx_list) - set(valid_idx_list))
     train_dataset = dataset.iloc[train_idx_list]
     valid_dataset = dataset.iloc[valid_idx_list]
+
+    # shuffle 추가
+    if shuffle:
+        train_dataset = dataset.iloc[np.random.permutation(train_idx_list)].reset_index(drop=True)
+        valid_dataset = dataset.iloc[np.random.permutation(valid_idx_list)].reset_index(drop=True)
 
     return train_dataset, valid_dataset
 
@@ -101,6 +130,73 @@ def tokenized_dataset_baseline(dataset, tokenizer):
       add_special_tokens=True,
       )
   return tokenized_sentences
+
+
+def tokenized_dataset_custom_tagging(dataset, tokenizer):
+    """
+    Custom tagging
+        <sub:subject_tag> </sub:subject_tag> to subject
+        </obj:object_tag> </obj:object_tag> to object
+    Example :
+        서진용(徐眞勇, 1992년 10월 2일 ~)은 KBO 리그 SK 와이번스의 투수이다.
+        <sub:PER>서진용</sub:PER>(徐眞勇, <obj:DAT>1992년 10월 2일</obj:DAT> ~)은 KBO 리그 SK 와이번스의 투수이다.
+
+    """
+    tag_sentence_lst = []
+    for index, row in dataset.iterrows():
+        sentence_ = row['sentence']
+        subject_span_ = row['subject_span']
+        object_span_ = row['object_span']
+        subject_tag_ = row['subject_tag']
+        object_tag_ = row['object_tag']
+        subject_entity_ = row['subject_entity']
+        object_entity_ = row['object_entity']
+
+        tagged_subject = f'<sub:{subject_tag_}>{subject_entity_}</sub:{subject_tag_}>'
+        tagged_object = f'<obj:{object_tag_}>{object_entity_}</obj:{object_tag_}>'
+
+        # split sentence for adding tag
+        if subject_span_[0] < object_span_[0]:
+            first_span = subject_span_
+            first_tag = tagged_subject
+            second_span = object_span_
+            second_tag = tagged_object
+        else:
+            first_span = object_span_
+            first_tag = tagged_object
+            second_span = subject_span_
+            second_tag = tagged_subject
+
+        tagged_sentnece = ''
+
+        # first sentence second
+        if first_span[0] == 0 and second_span[1] == len(sentence_) - 1:
+            tagged_sentnece = first_tag + sentence_[first_span[1] + 1:second_span[0]] + second_tag
+        # first sentence second sentence
+        elif first_span[0] == 0 and second_span[1] < len(sentence_) - 1:
+            tagged_sentnece = first_tag + sentence_[first_span[1] + 1:second_span[0]] + second_tag + sentence_[
+                                                                                                     second_span[
+                                                                                                         1] + 1:]
+        # sentence first sentence second
+        elif first_span[0] > 0 and second_span[1] == len(sentence_) - 1:
+            tagged_sentnece = sentence_[0:first_span[0]] + first_tag + sentence_[
+                                                                       first_span[1] + 1:second_span[0]] + second_tag
+        # sentence first sentence second sentence
+        elif first_span[0] > 0 and second_span[1] < len(sentence_) - 1:
+            tagged_sentnece = sentence_[0:first_span[0]] + first_tag + sentence_[first_span[1] + 1:second_span[
+                0]] + second_tag + sentence_[second_span[1] + 1:]
+
+        tag_sentence_lst.append(tagged_sentnece)
+
+    tokenized_sentences = tokenizer(
+            tag_sentence_lst,
+            return_tensors="pt",
+            pad_to_max_length=True,
+            padding=True,
+            max_length=384,
+            add_special_tokens=True
+        )
+    return tokenized_sentences
 
 def tokenized_dataset_entity(dataset, tokenizer):
     """ tokenizer에 따라 sentence를 tokenizing 합니다."""
