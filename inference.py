@@ -92,11 +92,12 @@ def main(args):
   output.to_csv(output_path, index=False) # 최종적으로 완성된 예측한 라벨 csv 파일 형태로 저장.
   #### 필수!! ##############################################
   print('---- Finish! ----')
+
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
   
   # model dir
-  parser.add_argument('--model_dir', type=str, default="./best_model/klue-roberta-large-new-tag-5-fold-augmented/0-fold-1800")
+  parser.add_argument('--model_dir', type=str, default="./best_model/klue-roberta-large-new-tag-5-fold-augmented/4-fold-2200")
   args = parser.parse_args()
   print(args)
   main(args)

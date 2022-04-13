@@ -105,7 +105,7 @@ def main(args):
 if __name__ == '__main__':
   parser = argparse.ArgumentParser()
 
-  parser.add_argument('--model_dir', type=str, default="./best_model/klue-roberta-large-new-tag-5-fold-re")
+  parser.add_argument('--model_dir', type=str, default="./best_model/rank-1-2-4-5")
   args = parser.parse_args()
   print(vars(args))
   main(args)
